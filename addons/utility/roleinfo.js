@@ -6,7 +6,7 @@
  */
 
 const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField, MessageFlags } = require("discord.js");
-const Emojis = require("../config/emojis");
+const Emojis = require("../../config/emojis");
 
 // Key permissions to surface in the output (most relevant for moderation/security audits)
 const KEY_PERMISSIONS = [

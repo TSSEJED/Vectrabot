@@ -21,12 +21,15 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,           // Required for core guild state, channels, slash commands
     GatewayIntentBits.GuildMessages,    // Required for guild-level message management
+    GatewayIntentBits.GuildMembers,     // Required for advanced member auditing & join tracking
+    GatewayIntentBits.GuildPresences,   // Required for real-time status & activity diagnostics
     GatewayIntentBits.MessageContent    // Required for reading message content when authorized
   ]
 });
 
 // Attach command memory database structures
 client.commands = new Collection();
+client.giveaways = new Collection(); // In-memory store for active giveaway participant pools
 
 // 2. Initialize and attach the centralized Logger class
 client.logger = new Logger(client);
@@ -48,24 +51,30 @@ if (!fs.existsSync(ADDONS_DIR)) {
  * @param {string} namespace - Logger identifier tag ('Core' or 'Addon').
  */
 function loadCommandsFromDirectory(dirPath, namespace) {
-  const files = fs.readdirSync(dirPath).filter(file => file.endsWith(".js"));
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
 
-  for (const file of files) {
-    const filePath = path.join(dirPath, file);
-    try {
-      // Clear require cache to enable hot reloading support if required
-      delete require.cache[require.resolve(filePath)];
-      const command = require(filePath);
+  for (const entry of entries) {
+    const filePath = path.join(dirPath, entry.name);
 
-      // Validate signature: Must contain 'data' schema and 'execute' handler
-      if (command && typeof command === "object" && command.data && typeof command.execute === "function") {
-        client.commands.set(command.data.name, command);
-        client.logger.info(`Loaded ${namespace} Command: /${command.data.name} (from ${file})`);
-      } else {
-        client.logger.warn(`Skipped invalid command structure at: ${file} (Missing 'data' or 'execute' function)`);
+    if (entry.isDirectory()) {
+      // Dynamically recurse into category subdirectories
+      loadCommandsFromDirectory(filePath, namespace);
+    } else if (entry.isFile() && entry.name.endsWith(".js")) {
+      try {
+        // Clear require cache to enable hot reloading support if required
+        delete require.cache[require.resolve(filePath)];
+        const command = require(filePath);
+
+        // Validate signature: Must contain 'data' schema and 'execute' handler
+        if (command && typeof command === "object" && command.data && typeof command.execute === "function") {
+          client.commands.set(command.data.name, command);
+          client.logger.info(`Loaded ${namespace} Command: /${command.data.name} (from ${entry.name})`);
+        } else {
+          client.logger.warn(`Skipped invalid command structure at: ${entry.name} (Missing 'data' or 'execute' function)`);
+        }
+      } catch (error) {
+        client.logger.error(`Failed to load command at ${entry.name} in ${namespace} context:`, { error: error.message });
       }
-    } catch (error) {
-      client.logger.error(`Failed to load command at ${file} in ${namespace} context:`, { error: error.message });
     }
   }
 }
@@ -111,6 +120,36 @@ client.once("clientReady", async () => {
 
 // 5. Build integrated slash commands router and event router
 client.on("interactionCreate", async (interaction) => {
+  // Route Button Interactions
+  if (interaction.isButton()) {
+    if (interaction.customId === "ga_enter") {
+      const messageId = interaction.message.id;
+      const giveaway = client.giveaways.get(messageId);
+
+      if (!giveaway) {
+        return interaction.reply({
+          content: `${Emojis.global.error} This giveaway matrix has expired or is no longer active in memory.`,
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      if (giveaway.participants.has(interaction.user.id)) {
+        return interaction.reply({
+          content: `${Emojis.global.error} You have already entered this giveaway matrix.`,
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      giveaway.participants.add(interaction.user.id);
+
+      return interaction.reply({
+        content: `${Emojis.global.success} Entry confirmed! You have successfully synchronized with the giveaway reward pool.`,
+        flags: MessageFlags.Ephemeral
+      });
+    }
+    return;
+  }
+
   // Only route slash commands
   if (!interaction.isChatInputCommand()) return;
 
