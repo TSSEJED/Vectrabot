@@ -6,7 +6,7 @@
  */
 
 const { SlashCommandBuilder, EmbedBuilder, ChannelType, MessageFlags } = require("discord.js");
-const Emojis = require("../config/emojis");
+const Emojis = require("../../config/emojis");
 
 // Map ChannelType integers to human-readable labels
 const CHANNEL_TYPE_LABELS = {
