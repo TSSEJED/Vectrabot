@@ -1,0 +1,22 @@
+{
+  "name": "vectrabot-core",
+  "version": "1.0.0",
+  "description": "Production-ready enterprise Discord bot core template for bot-hosting.net",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "cortex-hq",
+    "bot-hosting"
+  ],
+  "author": "Cortex HQ",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5"
+  }
+}

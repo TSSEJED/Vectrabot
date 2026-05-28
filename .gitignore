@@ -1,0 +1,14 @@
+# Secrets and Environment Variables
+.env
+
+# Node.js Dependencies
+node_modules/
+npm-debug.log*
+
+# Backups and Archives
+.git.zip
+*.zip
+
+# Operating System Files
+.DS_Store
+Thumbs.db
