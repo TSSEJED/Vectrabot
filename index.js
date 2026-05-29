@@ -91,6 +91,12 @@ if (auditLogs && typeof auditLogs.init === "function") {
   client.logger.info("Initialized specialized addon logic: AuditLogs");
 }
 
+const welcomeSystem = require("./addons/utility/welcome-system");
+if (welcomeSystem && typeof welcomeSystem.init === "function") {
+  welcomeSystem.init(client);
+  client.logger.info("Initialized specialized addon logic: WelcomeSystem");
+}
+
 // 5. Register the clientReady Lifecycle Hook to synchronize slash commands
 // NOTE: discord.js v14+ renamed 'ready' to 'clientReady' to distinguish it
 // from the raw Gateway READY packet. Using 'ready' still works but prints a
