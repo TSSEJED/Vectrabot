@@ -24,6 +24,7 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,    // Required for guild-level message management
     GatewayIntentBits.GuildMembers,     // Required for advanced member auditing & join tracking
     GatewayIntentBits.GuildPresences,   // Required for real-time status & activity diagnostics
+    GatewayIntentBits.GuildVoiceStates, // Required for join-to-create voice automation
     GatewayIntentBits.MessageContent    // Required for reading message content when authorized
   ]
 });
@@ -95,6 +96,12 @@ const welcomeSystem = require("./addons/utility/welcome-system");
 if (welcomeSystem && typeof welcomeSystem.init === "function") {
   welcomeSystem.init(client);
   client.logger.info("Initialized specialized addon logic: WelcomeSystem");
+}
+
+const jtcSystem = require("./addons/utility/join-to-create");
+if (jtcSystem && typeof jtcSystem.init === "function") {
+  jtcSystem.init(client);
+  client.logger.info("Initialized specialized addon logic: JoinToCreate");
 }
 
 // 5. Register the clientReady Lifecycle Hook to synchronize slash commands
