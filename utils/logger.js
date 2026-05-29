@@ -87,8 +87,9 @@ class Logger {
    * @param {number} color - Embed left-border accent color as a hex integer.
    * @param {string} emoji - Unicode fallback emoji prefix for the embed title.
    * @param {string} [guildId] - Optional guild ID for guild-specific logging.
+   * @param {EmbedBuilder} [customEmbed] - Optional pre-built embed to send instead of generating one.
    */
-  async _broadcastToDiscord(level, message, color, emoji, guildId) {
+  async _broadcastToDiscord(level, message, color, emoji, guildId, customEmbed = null) {
     let channelId = null;
 
     if (guildId) {
@@ -107,6 +108,8 @@ class Logger {
         channelId = process.env.ERROR_LOG_CHANNEL_ID || process.env.LOG_CHANNEL_ID;
       } else if (level === "COMMAND") {
         channelId = process.env.COMMAND_LOG_CHANNEL_ID || process.env.LOG_CHANNEL_ID;
+      } else if (level === "AUDIT") {
+        channelId = process.env.AUDIT_LOG_CHANNEL_ID || process.env.LOG_CHANNEL_ID;
       }
     }
 
@@ -117,8 +120,7 @@ class Logger {
       const channel = await this.client.channels.fetch(channelId).catch(() => null);
       if (!channel || !channel.isTextBased()) return;
 
-      // Build a color-coded embed containing the log entry and timestamp
-      const embed = new EmbedBuilder()
+      const embed = customEmbed || new EmbedBuilder()
         .setColor(color)
         .setTitle(`${emojis.resolve(this.client, level.toLowerCase(), guildId) || emoji} ${level}`)
         .setDescription(message)

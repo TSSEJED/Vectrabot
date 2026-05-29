@@ -31,7 +31,8 @@ module.exports = {
               { name: "Information", value: "info" },
               { name: "Warnings", value: "warn" },
               { name: "Errors", value: "error" },
-              { name: "Commands", value: "command" }
+              { name: "Commands", value: "command" },
+              { name: "Audit / Server Events", value: "audit" }
             )
         )
         .addChannelOption(opt =>
@@ -53,7 +54,8 @@ module.exports = {
               { name: "Information", value: "info" },
               { name: "Warnings", value: "warn" },
               { name: "Errors", value: "error" },
-              { name: "Commands", value: "command" }
+              { name: "Commands", value: "command" },
+              { name: "Audit / Server Events", value: "audit" }
             )
         )
     ),
@@ -116,6 +118,7 @@ module.exports = {
     const warnId = guildLogs.warn || process.env.WARN_LOG_CHANNEL_ID;
     const errorId = guildLogs.error || process.env.ERROR_LOG_CHANNEL_ID;
     const commandId = guildLogs.command || process.env.COMMAND_LOG_CHANNEL_ID;
+    const auditId = guildLogs.audit || process.env.AUDIT_LOG_CHANNEL_ID;
 
     // Helper to format channel status text cleanly
     const formatStatus = (channelId, label) => {
@@ -165,6 +168,10 @@ module.exports = {
             {
               type: 10, // TextDisplay - Command
               content: formatStatus(commandId || generalId, "COMMAND")
+            },
+            {
+              type: 10, // TextDisplay - Audit
+              content: formatStatus(auditId || generalId, "AUDIT")
             }
           ]
         }

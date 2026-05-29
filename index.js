@@ -84,7 +84,14 @@ function loadCommandsFromDirectory(dirPath, namespace) {
 loadCommandsFromDirectory(CORE_DIR, "Core");
 loadCommandsFromDirectory(ADDONS_DIR, "Addon");
 
-// 4. Register the clientReady Lifecycle Hook to synchronize slash commands
+// 4. Initialize specialized addon logic (e.g., Audit Logs)
+const auditLogs = require("./addons/utility/audit-logs");
+if (auditLogs && typeof auditLogs.init === "function") {
+  auditLogs.init(client);
+  client.logger.info("Initialized specialized addon logic: AuditLogs");
+}
+
+// 5. Register the clientReady Lifecycle Hook to synchronize slash commands
 // NOTE: discord.js v14+ renamed 'ready' to 'clientReady' to distinguish it
 // from the raw Gateway READY packet. Using 'ready' still works but prints a
 // DeprecationWarning; 'clientReady' is the correct modern event name.
@@ -165,7 +172,7 @@ client.once("clientReady", async () => {
   }
 });
 
-// 5. Build integrated slash commands router and event router
+// 6. Build integrated slash commands router and event router
 client.on("interactionCreate", async (interaction) => {
   // Route Button Interactions
   if (interaction.isButton()) {
@@ -234,7 +241,7 @@ client.on("interactionCreate", async (interaction) => {
   }
 });
 
-// 6. Connect to Discord Gateway
+// 7. Connect to Discord Gateway
 if (process.env.DISCORD_TOKEN) {
   client.login(process.env.DISCORD_TOKEN).catch(err => {
     console.error("[Cortex HQ Partnership] Authentication failed while logging into Discord Gateway:", err.message);
