@@ -26,7 +26,7 @@ module.exports = {
 
     const embed = new EmbedBuilder()
       .setColor(0x3b82f6) // Theme blue
-      .setTitle(`${Emojis.global.satellite} Connection Diagnostics`)
+      .setTitle(`${Emojis.resolve(client, "satellite", interaction.guildId)} Connection Diagnostics`)
       .addFields(
         { name: "API Latency", value: `\`${roundTrip}ms\``, inline: true },
         { name: "WebSocket Heartbeat", value: `\`${heartbeat}ms\``, inline: true }

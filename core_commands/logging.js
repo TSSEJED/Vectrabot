@@ -1,49 +1,135 @@
 /**
  * @file core_commands/logging.js
- * @description Command to check active log channel configurations and verify setup.
+ * @description Advanced command to manage system logging channels persistently.
  * Uses Discord Components V2 Containers, TextDisplays, and Separators.
  * 
  * © 2026 Cortex HQ & bot-hosting.net
  */
 
-const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require("discord.js");
 const Emojis = require("../config/emojis");
+const storage = require("../utils/storage");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("logging")
-    .setDescription("View the active configuration of all system logging channels.")
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator), // Admin-only security constraint
+    .setDescription("View and configure system logging channels.")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .addSubcommand(sub =>
+      sub.setName("status")
+        .setDescription("View the active configuration of all system logging channels.")
+    )
+    .addSubcommand(sub =>
+      sub.setName("set")
+        .setDescription("Set a specific log channel.")
+        .addStringOption(opt =>
+          opt.setName("level")
+            .setDescription("The log level to configure.")
+            .setRequired(true)
+            .addChoices(
+              { name: "General (Fallback)", value: "general" },
+              { name: "Information", value: "info" },
+              { name: "Warnings", value: "warn" },
+              { name: "Errors", value: "error" },
+              { name: "Commands", value: "command" }
+            )
+        )
+        .addChannelOption(opt =>
+          opt.setName("channel")
+            .setDescription("The channel to send logs to.")
+            .setRequired(true)
+        )
+    )
+    .addSubcommand(sub =>
+      sub.setName("reset")
+        .setDescription("Reset logging configuration for a specific level or all levels.")
+        .addStringOption(opt =>
+          opt.setName("level")
+            .setDescription("The log level to reset.")
+            .setRequired(true)
+            .addChoices(
+              { name: "All", value: "all" },
+              { name: "General", value: "general" },
+              { name: "Information", value: "info" },
+              { name: "Warnings", value: "warn" },
+              { name: "Errors", value: "error" },
+              { name: "Commands", value: "command" }
+            )
+        )
+    ),
 
   /**
-   * Execute the logging check command.
+   * Execute the logging command.
    * @param {import('discord.js').ChatInputCommandInteraction} interaction 
    * @param {import('discord.js').Client} client 
    */
   async execute(interaction, client) {
+    const subcommand = interaction.options.getSubcommand();
+    const guildId = interaction.guildId;
     const botName = process.env.BOT_NAME || "Bot";
+
+    if (subcommand === "set") {
+      const level = interaction.options.getString("level");
+      const channel = interaction.options.getChannel("channel");
+
+      if (!channel.isTextBased()) {
+        return interaction.reply({
+          content: `${Emojis.resolve(client, "error", guildId)} **Invalid Channel:** Please select a text-based channel.`,
+          flags: MessageFlags.Ephemeral
+        });
+      }
+
+      const guildLogs = storage.get("logs", guildId) || {};
+      guildLogs[level] = channel.id;
+      storage.set("logs", guildId, guildLogs);
+
+      return interaction.reply({
+        content: `${Emojis.resolve(client, "success", guildId)} **Configuration Updated:** \`${level.toUpperCase()}\` logs will now be sent to <#${channel.id}>.`,
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    if (subcommand === "reset") {
+      const level = interaction.options.getString("level");
+      const guildLogs = storage.get("logs", guildId) || {};
+
+      if (level === "all") {
+        storage.delete("logs", guildId);
+      } else {
+        delete guildLogs[level];
+        storage.set("logs", guildId, guildLogs);
+      }
+
+      return interaction.reply({
+        content: `${Emojis.resolve(client, "success", guildId)} **Configuration Reset:** \`${level.toUpperCase()}\` logging has been reset to defaults.`,
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+    // Default: status subcommand
+    // Check persistent config first
+    const guildLogs = storage.get("logs", guildId) || {};
     
-    // Check configured environment channels
-    const generalId = process.env.LOG_CHANNEL_ID;
-    const infoId = process.env.INFO_LOG_CHANNEL_ID;
-    const warnId = process.env.WARN_LOG_CHANNEL_ID;
-    const errorId = process.env.ERROR_LOG_CHANNEL_ID;
-    const commandId = process.env.COMMAND_LOG_CHANNEL_ID;
+    // Fallback to environment variables
+    const generalId = guildLogs.general || process.env.LOG_CHANNEL_ID;
+    const infoId = guildLogs.info || process.env.INFO_LOG_CHANNEL_ID;
+    const warnId = guildLogs.warn || process.env.WARN_LOG_CHANNEL_ID;
+    const errorId = guildLogs.error || process.env.ERROR_LOG_CHANNEL_ID;
+    const commandId = guildLogs.command || process.env.COMMAND_LOG_CHANNEL_ID;
 
     // Helper to format channel status text cleanly
     const formatStatus = (channelId, label) => {
       if (!channelId) {
-        return `${Emojis.global.error} **${label} Log Channel:** \`Disabled\` (Console Only)`;
+        return `${Emojis.resolve(client, "error", guildId)} **${label} Log Channel:** \`Disabled\` (Console Only)`;
       }
-      return `${Emojis.global.satellite} **${label} Log Channel:** <#${channelId}> (\`${channelId}\`)`;
+      return `${Emojis.resolve(client, "satellite", guildId)} **${label} Log Channel:** <#${channelId}> (\`${channelId}\`)`;
     };
 
     const generalStatus = generalId 
-      ? `${Emojis.global.web} **Fallback Log Channel:** <#${generalId}> (\`${generalId}\`)` 
-      : `${Emojis.global.error} **Fallback Log Channel:** \`Disabled\``;
+      ? `${Emojis.resolve(client, "web", guildId)} **Fallback Log Channel:** <#${generalId}> (\`${generalId}\`)`
+      : `${Emojis.resolve(client, "error", guildId)} **Fallback Log Channel:** \`Disabled\``;
 
     const payload = {
-      // Bitwise flag (1 << 15) forces next-gen component rendering
       flags: 1 << 15,
       components: [
         {
@@ -52,7 +138,7 @@ module.exports = {
           components: [
             {
               type: 10, // TextDisplay
-              content: `# ${Emojis.global.satellite} ${botName} Logging Configuration Matrix\nConfigure level-specific log channels in your \`.env\` file. If a level-specific channel is empty, it falls back to the general channel. If both are empty, that log level is disabled for Discord broadcasts.`
+              content: `# ${Emojis.resolve(client, "satellite", guildId)} ${botName} Logging Configuration Matrix\nConfigure level-specific log channels persistently for this guild.`
             },
             {
               type: 14 // Separator

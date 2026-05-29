@@ -27,7 +27,7 @@ module.exports = {
     const guild = interaction.guild;
     if (!guild) {
       return interaction.reply({
-        content: `${Emojis.global.error} This command can only be executed within a server.`,
+        content: `${Emojis.resolve(client, "error", interaction.guildId)} This command can only be executed within a server.`,
         flags: MessageFlags.Ephemeral
       });
     }
@@ -87,7 +87,7 @@ module.exports = {
 
     const embed = new EmbedBuilder()
       .setColor(member ? member.displayColor || 0x3b82f6 : 0x3b82f6)
-      .setTitle(`${Emojis.global.support} User Diagnostics — ${targetUser.username}`)
+      .setTitle(`${Emojis.resolve(client, "support", interaction.guildId)} User Diagnostics — ${targetUser.username}`)
       .setThumbnail(targetUser.displayAvatarURL({ size: 256 }))
       .addFields(
         { name: "👤 Identity Details", value: `• **Username:** ${targetUser.tag}\n• **ID:** \`${targetUser.id}\`\n• **Bot?** \`${targetUser.bot ? "Yes" : "No"}\``, inline: true },

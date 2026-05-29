@@ -44,7 +44,7 @@ module.exports = {
 
       if (!fetchedUser) {
         return interaction.reply({
-          content: `${Emojis.global.error} Unable to resolve user data. Please try again.`,
+          content: `${Emojis.resolve(client, "error", interaction.guildId)} Unable to resolve user data. Please try again.`,
           flags: MessageFlags.Ephemeral
         });
       }
@@ -54,14 +54,14 @@ module.exports = {
 
       if (!bannerUrl) {
         return interaction.reply({
-          content: `${Emojis.global.info} **${fetchedUser.username}** does not have a custom profile banner set.`,
+          content: `${Emojis.resolve(client, "info", interaction.guildId)} **${fetchedUser.username}** does not have a custom profile banner set.`,
           flags: MessageFlags.Ephemeral
         });
       }
 
       const embed = new EmbedBuilder()
         .setColor(fetchedUser.accentColor || 0x3b82f6)
-        .setTitle(`${Emojis.global.web} User Banner — ${fetchedUser.username}`)
+        .setTitle(`${Emojis.resolve(client, "web", interaction.guildId)} User Banner — ${fetchedUser.username}`)
         .setDescription(`🔗 [Open Banner URL](${bannerUrl})`)
         .setImage(bannerUrl)
         .setFooter({ text: `${process.env.BOT_NAME || "Bot"} • User Banner Fetch` })
@@ -74,7 +74,7 @@ module.exports = {
       const guild = interaction.guild;
       if (!guild) {
         return interaction.reply({
-          content: `${Emojis.global.error} This subcommand can only be executed within a server.`,
+          content: `${Emojis.resolve(client, "error", interaction.guildId)} This subcommand can only be executed within a server.`,
           flags: MessageFlags.Ephemeral
         });
       }
@@ -83,14 +83,14 @@ module.exports = {
 
       if (!bannerUrl) {
         return interaction.reply({
-          content: `${Emojis.global.info} **${guild.name}** does not have a server banner set. Banners require Boost Tier 2 or above.`,
+          content: `${Emojis.resolve(client, "info", interaction.guildId)} **${guild.name}** does not have a server banner set. Banners require Boost Tier 2 or above.`,
           flags: MessageFlags.Ephemeral
         });
       }
 
       const embed = new EmbedBuilder()
         .setColor(0x3b82f6)
-        .setTitle(`${Emojis.global.web} Server Banner — ${guild.name}`)
+        .setTitle(`${Emojis.resolve(client, "web", interaction.guildId)} Server Banner — ${guild.name}`)
         .setDescription(`🔗 [Open Banner URL](${bannerUrl})`)
         .setImage(bannerUrl)
         .setFooter({ text: `${process.env.BOT_NAME || "Bot"} • Server Banner Fetch` })

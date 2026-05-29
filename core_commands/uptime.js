@@ -35,7 +35,7 @@ module.exports = {
 
     const embed = new EmbedBuilder()
       .setColor(0x3b82f6) // Theme blue
-      .setTitle(`${Emojis.global.info} Process Uptime`)
+      .setTitle(`${Emojis.resolve(client, "info", interaction.guildId)} Process Uptime`)
       .setDescription(`The bot system has been running continuously for:\n${durationText}`)
       .setFooter({ text: `${process.env.BOT_NAME || "Bot"} Uptime Audit` })
       .setTimestamp();

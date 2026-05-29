@@ -36,7 +36,7 @@ module.exports = {
 
     const embed = new EmbedBuilder()
       .setColor(0x3b82f6)
-      .setTitle(`${Emojis.global.web} System Specifications & Stats`)
+      .setTitle(`${Emojis.resolve(client, "web", interaction.guildId)} System Specifications & Stats`)
       .setThumbnail(client.user.displayAvatarURL())
       .addFields(
         { name: "🤖 Client Metrics", value: `• **Guilds:** ${guildCount}\n• **Cached Users:** ${userCount}\n• **Cached Channels:** ${channelCount}`, inline: true },

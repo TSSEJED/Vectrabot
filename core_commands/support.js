@@ -40,7 +40,7 @@ module.exports = {
           components: [
             {
               type: 10, // TextDisplay — header block
-              content: `# ${Emojis.global.support} Cortex HQ Partnership Support Matrix\nNeed assistance with your ${botName} template or hosting setup? Select a service resource below for immediate connection:`
+              content: `# ${Emojis.resolve(client, "support", interaction.guildId)} Cortex HQ Partnership Support Matrix\nNeed assistance with your ${botName} template or hosting setup? Select a service resource below for immediate connection:`
             },
             {
               type: 14 // Separator — horizontal divider before action buttons

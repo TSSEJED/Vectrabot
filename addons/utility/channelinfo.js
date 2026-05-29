@@ -42,7 +42,7 @@ module.exports = {
 
     if (!channel) {
       return interaction.reply({
-        content: `${Emojis.global.error} Could not resolve the target channel.`,
+        content: `${Emojis.resolve(client, "error", interaction.guildId)} Could not resolve the target channel.`,
         flags: MessageFlags.Ephemeral
       });
     }
@@ -71,7 +71,7 @@ module.exports = {
 
     const embed = new EmbedBuilder()
       .setColor(0x3b82f6)
-      .setTitle(`${Emojis.global.web} Channel Diagnostics — #${channel.name}`)
+      .setTitle(`${Emojis.resolve(client, "web", interaction.guildId)} Channel Diagnostics — #${channel.name}`)
       .addFields(
         {
           name: "🆔 Identity",
