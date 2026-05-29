@@ -104,6 +104,12 @@ if (jtcSystem && typeof jtcSystem.init === "function") {
   client.logger.info("Initialized specialized addon logic: JoinToCreate");
 }
 
+const serverStats = require("./addons/utility/server-stats");
+if (serverStats && typeof serverStats.init === "function") {
+  serverStats.init(client);
+  client.logger.info("Initialized specialized addon logic: ServerStats");
+}
+
 // 5. Register the clientReady Lifecycle Hook to synchronize slash commands
 // NOTE: discord.js v14+ renamed 'ready' to 'clientReady' to distinguish it
 // from the raw Gateway READY packet. Using 'ready' still works but prints a
