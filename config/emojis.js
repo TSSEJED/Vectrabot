@@ -72,21 +72,28 @@ module.exports = {
     const customEnabled = guildId ? storage.get("settings", `custom_emojis_${guildId}`) !== false : true;
 
     if (customEnabled) {
+      // 1. Check for guild-specific override in persistent storage
+      if (guildId) {
+        const guildEmojis = storage.get("custom_emoji_mappings", guildId);
+        if (guildEmojis && guildEmojis[name]) {
+          return guildEmojis[name];
+        }
+      }
+
+      // 2. Fall back to template-defined custom emoji
       const customString = EMOJIS.custom[name];
       if (customString) {
-        // Extract the Snowflake ID from Discord formatted emoji string: <:name:snowflake_id>
         const match = customString.match(/:(\d+)>$/);
         if (match) {
           const emojiId = match[1];
-          // Validate if client has cache access to this snowflake
-          const hasEmoji = client.emojis.cache.has(emojiId);
-          if (hasEmoji) {
+          if (client.emojis.cache.has(emojiId)) {
             return customString;
           }
         }
       }
     }
-    // Fall back to unicode global fallback if custom is not found or not accessible
+
+    // 3. Fall back to global Unicode character
     return EMOJIS.global[name] || "";
   }
 };

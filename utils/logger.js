@@ -23,7 +23,7 @@ class Logger {
    */
   constructor(client) {
     this.client = client;
-    this.prefix = "[Cortex HQ Partnership]";
+    this.prefix = `[${process.env.BOT_NAME || "Vectrabot"}]`;
   }
 
   /**

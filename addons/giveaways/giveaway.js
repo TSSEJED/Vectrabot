@@ -126,12 +126,14 @@ module.exports = {
     const durationMs = parseInt(match[1]) * msMap[match[2]];
     const endTime = Math.floor((Date.now() + durationMs) / 1000);
 
+    const botConfig = storage.get("bot_identity", interaction.guildId) || {};
+
     const payload = {
       flags: 1 << 15, // IS_COMPONENTS_V2 bitwise flag
       components: [
         {
           type: 17, // Container
-          accent_color: 0x8b5cf6, // Premium Violet Accent
+          accent_color: botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x8b5cf6, // Premium Violet Accent
           components: [
             {
               type: 10, // TextDisplay

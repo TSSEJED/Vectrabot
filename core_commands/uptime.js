@@ -7,6 +7,7 @@
 
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const Emojis = require("../config/emojis");
+const storage = require("../utils/storage");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -33,11 +34,14 @@ module.exports = {
       `\`${seconds}\` seconds`
     ].filter(Boolean).join(", ");
 
+    const botConfig = storage.get("bot_identity", interaction.guildId) || {};
+    const botName = botConfig.displayName || process.env.BOT_NAME || "Bot";
+
     const embed = new EmbedBuilder()
-      .setColor(0x3b82f6) // Theme blue
+      .setColor(botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x3b82f6) // Theme blue
       .setTitle(`${Emojis.resolve(client, "info", interaction.guildId)} Process Uptime`)
       .setDescription(`The bot system has been running continuously for:\n${durationText}`)
-      .setFooter({ text: `${process.env.BOT_NAME || "Bot"} Uptime Audit` })
+      .setFooter({ text: `${botName} Uptime Audit` })
       .setTimestamp();
 
     await interaction.reply({ embeds: [embed] });

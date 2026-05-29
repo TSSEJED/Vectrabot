@@ -15,6 +15,7 @@
 
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const Emojis = require("../config/emojis");
+const storage = require("../utils/storage");
 
 // Helper to resolve permission names from bitfield
 function resolvePermissionName(bitfield) {
@@ -39,7 +40,9 @@ module.exports = {
    * @param {import('discord.js').Client} client 
    */
   async execute(interaction, client) {
-    const botName = process.env.BOT_NAME || "Bot";
+    const guildId = interaction.guildId;
+    const botConfig = storage.get("bot_identity", guildId) || {};
+    const botName = botConfig.displayName || process.env.BOT_NAME || "Bot";
 
     // Dynamically build a TextDisplay component for each registered command
     const commandDisplays = client.commands.map(cmd => {
@@ -58,7 +61,7 @@ module.exports = {
       components: [
         {
           type: 17, // Container — root wrapper with optional accent color bar
-          accent_color: 0x3b82f6, // Accent line (hex integer)
+          accent_color: botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x3b82f6, // Accent line (hex integer)
           components: [
             {
               type: 10, // TextDisplay — header block

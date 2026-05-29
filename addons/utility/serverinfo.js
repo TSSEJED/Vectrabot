@@ -7,6 +7,7 @@
 
 const { SlashCommandBuilder, EmbedBuilder, ChannelType, MessageFlags } = require("discord.js");
 const Emojis = require("../../config/emojis");
+const storage = require("../../utils/storage");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -70,8 +71,10 @@ module.exports = {
     };
     const verificationLevel = verificationMap[guild.verificationLevel] || guild.verificationLevel;
 
+    const botConfig = storage.get("bot_identity", interaction.guildId) || {};
+
     const embed = new EmbedBuilder()
-      .setColor(0x3b82f6)
+      .setColor(botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x3b82f6)
       .setTitle(`${Emojis.resolve(client, "web", interaction.guildId)} Guild Diagnostics — ${guild.name}`)
       .setThumbnail(guild.iconURL({ size: 256 }))
       .addFields(

@@ -68,7 +68,9 @@ module.exports = {
   async execute(interaction, client) {
     const subcommand = interaction.options.getSubcommand();
     const guildId = interaction.guildId;
-    const botName = process.env.BOT_NAME || "Bot";
+
+    const botConfig = storage.get("bot_identity", guildId) || {};
+    const botName = botConfig.displayName || process.env.BOT_NAME || "Bot";
 
     if (subcommand === "set") {
       const level = interaction.options.getString("level");
@@ -111,14 +113,17 @@ module.exports = {
     // Default: status subcommand
     // Check persistent config first
     const guildLogs = storage.get("logs", guildId) || {};
-    
+
+    // Fallback to environment variables
+    const auditLogId = process.env.AUDIT_LOG_CHANNEL_ID;
+
     // Fallback to environment variables
     const generalId = guildLogs.general || process.env.LOG_CHANNEL_ID;
     const infoId = guildLogs.info || process.env.INFO_LOG_CHANNEL_ID;
     const warnId = guildLogs.warn || process.env.WARN_LOG_CHANNEL_ID;
     const errorId = guildLogs.error || process.env.ERROR_LOG_CHANNEL_ID;
     const commandId = guildLogs.command || process.env.COMMAND_LOG_CHANNEL_ID;
-    const auditId = guildLogs.audit || process.env.AUDIT_LOG_CHANNEL_ID;
+    const auditId = guildLogs.audit || auditLogId;
 
     // Helper to format channel status text cleanly
     const formatStatus = (channelId, label) => {
@@ -137,7 +142,7 @@ module.exports = {
       components: [
         {
           type: 17, // Container
-          accent_color: 0x10b981, // Premium Emerald Accent line
+          accent_color: botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x10b981, // Premium Emerald Accent line
           components: [
             {
               type: 10, // TextDisplay

@@ -103,8 +103,10 @@ module.exports = {
     }
 
     if (subcommand === "status") {
+      const botConfig = storage.get("bot_identity", guildId) || {};
+
       const embed = new EmbedBuilder()
-        .setColor(0x3b82f6)
+        .setColor(botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x3b82f6)
         .setTitle(`${Emojis.resolve(client, "web", guildId)} Welcome System Configuration`)
         .addFields(
           {
