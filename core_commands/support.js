@@ -15,6 +15,7 @@
 
 const { SlashCommandBuilder } = require("discord.js");
 const Emojis = require("../config/emojis");
+const storage = require("../utils/storage");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -27,7 +28,9 @@ module.exports = {
    * @param {import('discord.js').Client} client 
    */
   async execute(interaction, client) {
-    const botName = process.env.BOT_NAME || "Bot";
+    const guildId = interaction.guildId;
+    const botConfig = storage.get("bot_identity", guildId) || {};
+    const botName = botConfig.displayName || process.env.BOT_NAME || "Bot";
 
     const payload = {
       // IS_COMPONENTS_V2 bitwise flag (1 << 15 = 32768) forces the Discord client
@@ -40,7 +43,7 @@ module.exports = {
           components: [
             {
               type: 10, // TextDisplay — header block
-              content: `# ${Emojis.global.support} Cortex HQ Partnership Support Matrix\nNeed assistance with your ${botName} template or hosting setup? Select a service resource below for immediate connection:`
+              content: `# ${Emojis.resolve(client, "support", interaction.guildId)} Cortex HQ Partnership Support Matrix\nNeed assistance with your ${botName} template or hosting setup? Select a service resource below for immediate connection:`
             },
             {
               type: 14 // Separator — horizontal divider before action buttons

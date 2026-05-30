@@ -8,6 +8,7 @@
 const { SlashCommandBuilder, EmbedBuilder, version: djsVersion } = require("discord.js");
 const os = require("os");
 const Emojis = require("../config/emojis");
+const storage = require("../utils/storage");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -34,16 +35,19 @@ module.exports = {
     const userCount = client.users.cache.size;
     const channelCount = client.channels.cache.size;
 
+    const botConfig = storage.get("bot_identity", interaction.guildId) || {};
+    const botName = botConfig.displayName || process.env.BOT_NAME || "Bot";
+
     const embed = new EmbedBuilder()
-      .setColor(0x3b82f6)
-      .setTitle(`${Emojis.global.web} System Specifications & Stats`)
+      .setColor(botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x3b82f6)
+      .setTitle(`${Emojis.resolve(client, "web", interaction.guildId)} System Specifications & Stats`)
       .setThumbnail(client.user.displayAvatarURL())
       .addFields(
         { name: "🤖 Client Metrics", value: `• **Guilds:** ${guildCount}\n• **Cached Users:** ${userCount}\n• **Cached Channels:** ${channelCount}`, inline: true },
         { name: "💻 Host Platform", value: `• **Platform:** ${os.platform()} (${os.arch()})\n• **Cores:** ${cores}x\n• **Model:** \`${cpuModel.trim()}\``, inline: true },
         { name: "📊 Software & Hardware", value: `• **Node.js:** \`${process.version}\`\n• **Discord.js:** \`v${djsVersion}\`\n• **Memory (RSS):** \`${memoryRss} MB\` / \`${totalMemory} GB\``, inline: false }
       )
-      .setFooter({ text: `${process.env.BOT_NAME || "Bot"} Diagnostics Suite` })
+      .setFooter({ text: `${botName} Diagnostics Suite` })
       .setTimestamp();
 
     await interaction.reply({ embeds: [embed] });

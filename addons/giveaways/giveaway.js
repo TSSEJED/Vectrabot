@@ -9,6 +9,7 @@
 
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const Emojis = require("../../config/emojis");
+const storage = require("../../utils/storage");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -47,7 +48,7 @@ module.exports = {
 
       if (!giveaway) {
         return interaction.reply({
-          content: `${Emojis.global.error} **System Error:** No active giveaway found with ID \`${messageId}\`.`,
+          content: `${Emojis.resolve(client, "error", interaction.guildId)} **System Error:** No active giveaway found with ID \`${messageId}\`.`,
           ephemeral: true
         });
       }
@@ -55,8 +56,9 @@ module.exports = {
       const participants = giveaway.participants;
       if (!participants || participants.size === 0) {
         client.giveaways.delete(messageId);
+        storage.delete("giveaways", messageId);
         return interaction.reply({
-          content: `${Emojis.global.error} **Giveaway Terminated:** No participants synchronized with matrix \`${messageId}\`.`,
+          content: `${Emojis.resolve(client, "error", interaction.guildId)} **Giveaway Terminated:** No participants synchronized with matrix \`${messageId}\`.`,
           ephemeral: true
         });
       }
@@ -66,19 +68,41 @@ module.exports = {
         .slice(0, giveaway.winnersCount);
 
       client.giveaways.delete(messageId);
+      storage.delete("giveaways", messageId);
 
       return interaction.reply({
-        content: `${Emojis.global.success} **Giveaway Concluded!**\nReward: **${giveaway.prize}**\nWinner(s): ${winners.map(id => `<@${id}>`).join(", ")}\nMatrix ID: \`${messageId}\``
+        content: `${Emojis.resolve(client, "success", interaction.guildId)} **Giveaway Concluded!**\nReward: **${giveaway.prize}**\nWinner(s): ${winners.map(id => `<@${id}>`).join(", ")}\nMatrix ID: \`${messageId}\``
       });
     }
 
     if (subcommand === "reroll") {
       const messageId = interaction.options.getString("id");
-      // In a production app, we would fetch the original giveaway message or use a DB.
-      // This is a simplified template implementation.
+      // In this advanced version, we can reroll finished giveaways if they are in storage
+      // but usually we reroll active or just finished ones.
+      // For simplicity, let's allow rerolling from the current participants if the giveaway is still in memory or recently ended.
+      // However, the task says "update the giveaway system to be more advanced".
+
+      const giveaway = client.giveaways.get(messageId) || storage.get("giveaways", messageId);
+
+      if (!giveaway) {
+        return interaction.reply({
+          content: `${Emojis.resolve(client, "error", interaction.guildId)} **System Error:** No giveaway data found for ID \`${messageId}\`.`,
+          ephemeral: true
+        });
+      }
+
+      const participants = giveaway.participants instanceof Set ? [...giveaway.participants] : (giveaway.participants || []);
+      if (participants.length === 0) {
+        return interaction.reply({
+          content: `${Emojis.resolve(client, "error", interaction.guildId)} **Reroll Failed:** No participants found for matrix \`${messageId}\`.`,
+          ephemeral: true
+        });
+      }
+
+      const winner = participants[Math.floor(Math.random() * participants.length)];
+
       return interaction.reply({
-        content: `${Emojis.global.satellite} **Winner Reroll:** Selection algorithm for matrix \`${messageId}\` is currently in read-only mode.`,
-        ephemeral: true
+        content: `${Emojis.resolve(client, "refresh", interaction.guildId)} **Giveaway Rerolled!**\nNew Winner: <@${winner}>\nMatrix ID: \`${messageId}\``
       });
     }
 
@@ -94,7 +118,7 @@ module.exports = {
 
     if (!match) {
       return interaction.reply({
-        content: `${Emojis.global.error} **Invalid Duration:** Please use a valid format (e.g., \`10m\`, \`1h\`, \`2d\`).`,
+        content: `${Emojis.resolve(client, "error", interaction.guildId)} **Invalid Duration:** Please use a valid format (e.g., \`10m\`, \`1h\`, \`2d\`).`,
         ephemeral: true
       });
     }
@@ -102,16 +126,18 @@ module.exports = {
     const durationMs = parseInt(match[1]) * msMap[match[2]];
     const endTime = Math.floor((Date.now() + durationMs) / 1000);
 
+    const botConfig = storage.get("bot_identity", interaction.guildId) || {};
+
     const payload = {
       flags: 1 << 15, // IS_COMPONENTS_V2 bitwise flag
       components: [
         {
           type: 17, // Container
-          accent_color: 0x8b5cf6, // Premium Violet Accent
+          accent_color: botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x8b5cf6, // Premium Violet Accent
           components: [
             {
               type: 10, // TextDisplay
-              content: `# ${Emojis.global.support} New Giveaway Initialized!\nParticipate in the active matrix below for a chance to win.`
+              content: `# ${Emojis.resolve(client, "support", interaction.guildId)} New Giveaway Initialized!\nParticipate in the active matrix below for a chance to win.`
             },
             {
               type: 14 // Separator
@@ -142,15 +168,54 @@ module.exports = {
 
     const response = await interaction.reply({ ...payload, fetchReply: true });
 
-    // Initialize the giveaway matrix in memory
-    client.giveaways.set(response.id, {
+    const giveawayData = {
+      id: response.id,
+      channelId: interaction.channelId,
+      guildId: interaction.guildId,
       prize,
       winnersCount,
       endTime,
-      participants: new Set(),
-      hostId: interaction.user.id
+      participants: [],
+      hostId: interaction.user.id,
+      status: "active"
+    };
+
+    // Initialize the giveaway matrix in memory
+    client.giveaways.set(response.id, {
+      ...giveawayData,
+      participants: new Set()
     });
 
+    // Persistent log
+    storage.set("giveaways", response.id, giveawayData);
+
     client.logger.info(`Giveaway started by ${interaction.user.tag} with ID ${response.id} for: ${prize}`);
+
+    // Schedule end
+    setTimeout(async () => {
+      const activeGiveaway = client.giveaways.get(response.id);
+      if (activeGiveaway) {
+        // Trigger end logic (can be refactored into a helper function)
+        const winners = [...activeGiveaway.participants]
+          .sort(() => 0.5 - Math.random())
+          .slice(0, activeGiveaway.winnersCount);
+
+        client.giveaways.delete(response.id);
+
+        // Update storage status
+        const stored = storage.get("giveaways", response.id);
+        if (stored) {
+          stored.status = "ended";
+          storage.set("giveaways", response.id, stored);
+        }
+
+        const channel = await client.channels.fetch(interaction.channelId).catch(() => null);
+        if (channel) {
+          await channel.send({
+            content: `${Emojis.resolve(client, "success", interaction.guildId)} **Giveaway Concluded!**\nReward: **${prize}**\nWinner(s): ${winners.map(id => `<@${id}>`).join(", ")}\nMatrix ID: \`${response.id}\``
+          });
+        }
+      }
+    }, durationMs);
   }
 };

@@ -7,6 +7,7 @@
 
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const Emojis = require("../config/emojis");
+const storage = require("../utils/storage");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -24,14 +25,17 @@ module.exports = {
     const roundTrip = sent.createdTimestamp - interaction.createdTimestamp;
     const heartbeat = client.ws.ping;
 
+    const botConfig = storage.get("bot_identity", interaction.guildId) || {};
+    const botName = botConfig.displayName || process.env.BOT_NAME || "Bot";
+
     const embed = new EmbedBuilder()
-      .setColor(0x3b82f6) // Theme blue
-      .setTitle(`${Emojis.global.satellite} Connection Diagnostics`)
+      .setColor(botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x3b82f6) // Theme blue
+      .setTitle(`${Emojis.resolve(client, "satellite", interaction.guildId)} Connection Diagnostics`)
       .addFields(
         { name: "API Latency", value: `\`${roundTrip}ms\``, inline: true },
         { name: "WebSocket Heartbeat", value: `\`${heartbeat}ms\``, inline: true }
       )
-      .setFooter({ text: `${process.env.BOT_NAME || "Bot"} Systems` })
+      .setFooter({ text: `${botName} Systems` })
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });

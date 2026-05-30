@@ -13,8 +13,21 @@
  * © 2026 Cortex HQ & bot-hosting.net
  */
 
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const Emojis = require("../config/emojis");
+const storage = require("../utils/storage");
+
+// Helper to resolve permission names from bitfield
+function resolvePermissionName(bitfield) {
+  if (!bitfield) return "Everyone";
+  const permissions = Object.entries(PermissionFlagsBits);
+  for (const [name, value] of permissions) {
+    if (value === BigInt(bitfield)) {
+      return name;
+    }
+  }
+  return "Restricted";
+}
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -27,13 +40,18 @@ module.exports = {
    * @param {import('discord.js').Client} client 
    */
   async execute(interaction, client) {
-    const botName = process.env.BOT_NAME || "Bot";
+    const guildId = interaction.guildId;
+    const botConfig = storage.get("bot_identity", guildId) || {};
+    const botName = botConfig.displayName || process.env.BOT_NAME || "Bot";
 
     // Dynamically build a TextDisplay component for each registered command
-    const commandDisplays = client.commands.map(cmd => ({
-      type: 10, // TextDisplay — renders markdown text inline
-      content: `${Emojis.global.satellite} **/${cmd.data.name}** — ${cmd.data.description}`
-    }));
+    const commandDisplays = client.commands.map(cmd => {
+      const perms = resolvePermissionName(cmd.data.default_member_permissions);
+      return {
+        type: 10, // TextDisplay — renders markdown text inline
+        content: `${Emojis.resolve(client, "satellite", interaction.guildId)} **/${cmd.data.name}** — ${cmd.data.description}\n> *Permission: \`${perms}\`*`
+      };
+    });
 
     // Construct the root Components V2 Container layout
     const payload = {
@@ -43,11 +61,11 @@ module.exports = {
       components: [
         {
           type: 17, // Container — root wrapper with optional accent color bar
-          accent_color: 0x3b82f6, // Accent line (hex integer)
+          accent_color: botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x3b82f6, // Accent line (hex integer)
           components: [
             {
               type: 10, // TextDisplay — header block
-              content: `# ${Emojis.global.web} ${botName} Command Directory\nDiscover the loaded command matrix below and get started:`
+              content: `# ${Emojis.resolve(client, "web", interaction.guildId)} ${botName} Command Directory\nDiscover the loaded command matrix below and get started:`
             },
             {
               type: 14 // Separator — horizontal divider between header and command list

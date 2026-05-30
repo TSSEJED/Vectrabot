@@ -15,6 +15,7 @@ const path = require("path");
 const { Client, GatewayIntentBits, Collection, REST, Routes, MessageFlags } = require("discord.js");
 const Emojis = require("./config/emojis");
 const Logger = require("./utils/logger");
+const storage = require("./utils/storage");
 
 // 1. Initialize the Discord Client with precise modern GatewayIntentBits
 const client = new Client({
@@ -23,6 +24,7 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,    // Required for guild-level message management
     GatewayIntentBits.GuildMembers,     // Required for advanced member auditing & join tracking
     GatewayIntentBits.GuildPresences,   // Required for real-time status & activity diagnostics
+    GatewayIntentBits.GuildVoiceStates, // Required for join-to-create voice automation
     GatewayIntentBits.MessageContent    // Required for reading message content when authorized
   ]
 });
@@ -83,12 +85,83 @@ function loadCommandsFromDirectory(dirPath, namespace) {
 loadCommandsFromDirectory(CORE_DIR, "Core");
 loadCommandsFromDirectory(ADDONS_DIR, "Addon");
 
-// 4. Register the clientReady Lifecycle Hook to synchronize slash commands
+// 4. Initialize specialized addon logic (e.g., Audit Logs)
+const auditLogs = require("./addons/utility/audit-logs");
+if (auditLogs && typeof auditLogs.init === "function") {
+  auditLogs.init(client);
+  client.logger.info("Initialized specialized addon logic: AuditLogs");
+}
+
+const welcomeSystem = require("./addons/utility/welcome-system");
+if (welcomeSystem && typeof welcomeSystem.init === "function") {
+  welcomeSystem.init(client);
+  client.logger.info("Initialized specialized addon logic: WelcomeSystem");
+}
+
+const jtcSystem = require("./addons/utility/join-to-create");
+if (jtcSystem && typeof jtcSystem.init === "function") {
+  jtcSystem.init(client);
+  client.logger.info("Initialized specialized addon logic: JoinToCreate");
+}
+
+const serverStats = require("./addons/utility/server-stats");
+if (serverStats && typeof serverStats.init === "function") {
+  serverStats.init(client);
+  client.logger.info("Initialized specialized addon logic: ServerStats");
+}
+
+// 5. Register the clientReady Lifecycle Hook to synchronize slash commands
 // NOTE: discord.js v14+ renamed 'ready' to 'clientReady' to distinguish it
 // from the raw Gateway READY packet. Using 'ready' still works but prints a
 // DeprecationWarning; 'clientReady' is the correct modern event name.
 client.once("clientReady", async () => {
   client.logger.info(`Successfully logged in as ${client.user.tag}! Synchronizing application command registries...`);
+
+  // Recover giveaways from storage
+  const giveaways = storage.getAll("giveaways");
+  for (const [id, data] of Object.entries(giveaways)) {
+    if (data.status === "active") {
+      const now = Math.floor(Date.now() / 1000);
+      const remainingMs = (data.endTime - now) * 1000;
+
+      if (remainingMs > 0) {
+        client.giveaways.set(id, {
+          ...data,
+          participants: new Set(data.participants)
+        });
+
+        setTimeout(async () => {
+          const activeGiveaway = client.giveaways.get(id);
+          if (activeGiveaway) {
+            const winners = [...activeGiveaway.participants]
+              .sort(() => 0.5 - Math.random())
+              .slice(0, activeGiveaway.winnersCount);
+
+            client.giveaways.delete(id);
+
+            const stored = storage.get("giveaways", id);
+            if (stored) {
+              stored.status = "ended";
+              storage.set("giveaways", id, stored);
+            }
+
+            const channel = await client.channels.fetch(data.channelId).catch(() => null);
+            if (channel) {
+              await channel.send({
+                content: `${Emojis.resolve(client, "success", data.guildId)} **Giveaway Concluded!**\nReward: **${data.prize}**\nWinner(s): ${winners.map(uid => `<@${uid}>`).join(", ")}\nMatrix ID: \`${id}\``
+              });
+            }
+          }
+        }, remainingMs);
+        client.logger.info(`Recovered active giveaway ${id}, ending in ${Math.round(remainingMs / 1000)}s`);
+      } else {
+        // Automatically end giveaways that expired while bot was offline
+        data.status = "expired_offline";
+        storage.set("giveaways", id, data);
+        client.logger.info(`Giveaway ${id} expired while bot was offline.`);
+      }
+    }
+  }
 
   // Map commands to standard JSON API structure
   const commandsData = client.commands.map(cmd => cmd.data.toJSON());
@@ -118,7 +191,7 @@ client.once("clientReady", async () => {
   }
 });
 
-// 5. Build integrated slash commands router and event router
+// 6. Build integrated slash commands router and event router
 client.on("interactionCreate", async (interaction) => {
   // Route Button Interactions
   if (interaction.isButton()) {
@@ -128,22 +201,29 @@ client.on("interactionCreate", async (interaction) => {
 
       if (!giveaway) {
         return interaction.reply({
-          content: `${Emojis.global.error} This giveaway matrix has expired or is no longer active in memory.`,
+          content: `${Emojis.resolve(client, "error", interaction.guildId)} This giveaway matrix has expired or is no longer active in memory.`,
           flags: MessageFlags.Ephemeral
         });
       }
 
       if (giveaway.participants.has(interaction.user.id)) {
         return interaction.reply({
-          content: `${Emojis.global.error} You have already entered this giveaway matrix.`,
+          content: `${Emojis.resolve(client, "error", interaction.guildId)} You have already entered this giveaway matrix.`,
           flags: MessageFlags.Ephemeral
         });
       }
 
       giveaway.participants.add(interaction.user.id);
 
+      // Update persistent storage with new entry
+      const stored = storage.get("giveaways", messageId);
+      if (stored) {
+        stored.participants = [...giveaway.participants];
+        storage.set("giveaways", messageId, stored);
+      }
+
       return interaction.reply({
-        content: `${Emojis.global.success} Entry confirmed! You have successfully synchronized with the giveaway reward pool.`,
+        content: `${Emojis.resolve(client, "success", interaction.guildId)} Entry confirmed! You have successfully synchronized with the giveaway reward pool.`,
         flags: MessageFlags.Ephemeral
       });
     }
@@ -168,7 +248,7 @@ client.on("interactionCreate", async (interaction) => {
     // Build user-friendly ephemeral error message using MessageFlags.Ephemeral
     // (the legacy `ephemeral: true` property is deprecated in discord.js v14+)
     const errorPayload = {
-      content: `${Emojis.global.error} **System Error:** An error occurred while executing this command. Please try again later or contact support.`,
+      content: `${Emojis.resolve(client, "error", interaction.guildId)} **System Error:** An error occurred while executing this command. Please try again later or contact support.`,
       flags: MessageFlags.Ephemeral
     };
 
@@ -180,7 +260,7 @@ client.on("interactionCreate", async (interaction) => {
   }
 });
 
-// 6. Connect to Discord Gateway
+// 7. Connect to Discord Gateway
 if (process.env.DISCORD_TOKEN) {
   client.login(process.env.DISCORD_TOKEN).catch(err => {
     console.error("[Cortex HQ Partnership] Authentication failed while logging into Discord Gateway:", err.message);

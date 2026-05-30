@@ -76,7 +76,7 @@ module.exports = {
 
     const embed = new EmbedBuilder()
       .setColor(0x3b82f6)
-      .setTitle(`${Emojis.global.web} Avatar — ${fetchedUser.username}`)
+      .setTitle(`${Emojis.resolve(client, "web", interaction.guildId)} Avatar — ${fetchedUser.username}`)
       .setDescription(
         `**Viewing:** \`${resolvedFormat.toUpperCase()}\` at \`${size}px\`\n` +
         `**Animated:** \`${isAnimated ? "Yes" : "No"}\`\n\n` +

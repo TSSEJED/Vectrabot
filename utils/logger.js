@@ -14,6 +14,7 @@
 
 const { EmbedBuilder } = require("discord.js");
 const emojis = require("../config/emojis");
+const storage = require("./storage");
 
 class Logger {
   /**
@@ -22,7 +23,7 @@ class Logger {
    */
   constructor(client) {
     this.client = client;
-    this.prefix = "[Cortex HQ Partnership]";
+    this.prefix = `[${process.env.BOT_NAME || "Vectrabot"}]`;
   }
 
   /**
@@ -79,23 +80,41 @@ class Logger {
 
   /**
    * Broadcasts a log event to the configured Discord channel using a standard EmbedBuilder.
+   * Supports both global environment config and guild-specific persistent config.
    * @private
    * @param {string} level - Log level label ('INFO', 'WARN', 'ERROR', 'COMMAND').
    * @param {string} message - Message content to broadcast.
    * @param {number} color - Embed left-border accent color as a hex integer.
    * @param {string} emoji - Unicode fallback emoji prefix for the embed title.
+   * @param {string} [guildId] - Optional guild ID for guild-specific logging.
+   * @param {EmbedBuilder} [customEmbed] - Optional pre-built embed to send instead of generating one.
    */
-  async _broadcastToDiscord(level, message, color, emoji) {
-    // Check for level-specific log channels first, then fall back to the general log channel
+  async _broadcastToDiscord(level, message, color, emoji, guildId, customEmbed = null) {
     let channelId = null;
-    if (level === "INFO") {
-      channelId = process.env.INFO_LOG_CHANNEL_ID || process.env.LOG_CHANNEL_ID;
-    } else if (level === "WARN") {
-      channelId = process.env.WARN_LOG_CHANNEL_ID || process.env.LOG_CHANNEL_ID;
-    } else if (level === "ERROR") {
-      channelId = process.env.ERROR_LOG_CHANNEL_ID || process.env.LOG_CHANNEL_ID;
-    } else if (level === "COMMAND") {
-      channelId = process.env.COMMAND_LOG_CHANNEL_ID || process.env.LOG_CHANNEL_ID;
+
+    if (guildId) {
+      // 0. Check if global logging is disabled for this guild
+      const botConfig = storage.get("bot_identity", guildId) || {};
+      if (botConfig.loggingEnabled === false) return;
+
+      // Try guild-specific persistent storage first
+      const guildLogs = storage.get("logs", guildId) || {};
+      channelId = guildLogs[level.toLowerCase()] || guildLogs.general;
+    }
+
+    // Fall back to environment variables if no guild-specific channel is set
+    if (!channelId) {
+      if (level === "INFO") {
+        channelId = process.env.INFO_LOG_CHANNEL_ID || process.env.LOG_CHANNEL_ID;
+      } else if (level === "WARN") {
+        channelId = process.env.WARN_LOG_CHANNEL_ID || process.env.LOG_CHANNEL_ID;
+      } else if (level === "ERROR") {
+        channelId = process.env.ERROR_LOG_CHANNEL_ID || process.env.LOG_CHANNEL_ID;
+      } else if (level === "COMMAND") {
+        channelId = process.env.COMMAND_LOG_CHANNEL_ID || process.env.LOG_CHANNEL_ID;
+      } else if (level === "AUDIT") {
+        channelId = process.env.AUDIT_LOG_CHANNEL_ID || process.env.LOG_CHANNEL_ID;
+      }
     }
 
     // No channel configured? No Discord broadcast log!
@@ -105,12 +124,11 @@ class Logger {
       const channel = await this.client.channels.fetch(channelId).catch(() => null);
       if (!channel || !channel.isTextBased()) return;
 
-      // Build a color-coded embed containing the log entry and timestamp
-      const embed = new EmbedBuilder()
+      const embed = customEmbed || new EmbedBuilder()
         .setColor(color)
-        .setTitle(`${emoji} ${level}`)
+        .setTitle(`${emojis.resolve(this.client, level.toLowerCase(), guildId) || emoji} ${level}`)
         .setDescription(message)
-        .setFooter({ text: "Logger System" })
+        .setFooter({ text: "Advanced Logger System" })
         .setTimestamp();
 
       await channel.send({ embeds: [embed] });
@@ -118,6 +136,33 @@ class Logger {
       // Fallback: surface failure to console only — never re-enter the logger loop
       console.error(`\x1b[31m${this.prefix}\x1b[0m Failed to broadcast log to Discord channel ${channelId}:`, err.message);
     }
+  }
+
+  /**
+   * Log info events specifically for a guild.
+   */
+  async guildInfo(guildId, message, metadata = {}) {
+    const timestamp = new Date().toISOString();
+    console.log(`\x1b[32m${this.prefix}\x1b[0m [INFO] [GUILD:${guildId}] [${timestamp}] ${message}`, Object.keys(metadata).length ? metadata : "");
+    await this._broadcastToDiscord("INFO", message, 0x3b82f6, emojis.global.info, guildId);
+  }
+
+  /**
+   * Log warn events specifically for a guild.
+   */
+  async guildWarn(guildId, message, metadata = {}) {
+    const timestamp = new Date().toISOString();
+    console.warn(`\x1b[33m${this.prefix}\x1b[0m [WARN] [GUILD:${guildId}] [${timestamp}] ${message}`, Object.keys(metadata).length ? metadata : "");
+    await this._broadcastToDiscord("WARN", message, 0xf59e0b, emojis.global.support, guildId);
+  }
+
+  /**
+   * Log error events specifically for a guild.
+   */
+  async guildError(guildId, message, metadata = {}) {
+    const timestamp = new Date().toISOString();
+    console.error(`\x1b[31m${this.prefix}\x1b[0m [ERROR] [GUILD:${guildId}] [${timestamp}] ${message}`, Object.keys(metadata).length ? metadata : "");
+    await this._broadcastToDiscord("ERROR", message, 0xef4444, emojis.global.error, guildId);
   }
 }
 

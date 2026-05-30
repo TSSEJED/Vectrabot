@@ -37,7 +37,7 @@ module.exports = {
       invite = await client.fetchInvite(code);
     } catch (err) {
       return interaction.editReply({
-        content: `${Emojis.global.error} Could not resolve invite code \`${code}\`. It may be invalid or expired.`
+        content: `${Emojis.resolve(client, "error", interaction.guildId)} Could not resolve invite code \`${code}\`. It may be invalid or expired.`
       });
     }
 
@@ -67,7 +67,7 @@ module.exports = {
 
     const embed = new EmbedBuilder()
       .setColor(0x3b82f6)
-      .setTitle(`${Emojis.global.web} Invite Diagnostics — \`${code}\``)
+      .setTitle(`${Emojis.resolve(client, "web", interaction.guildId)} Invite Diagnostics — \`${code}\``)
       .addFields(
         {
           name: "📌 Destination",

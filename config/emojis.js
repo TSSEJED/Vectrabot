@@ -7,6 +7,8 @@
  * © 2026 Cortex HQ & bot-hosting.net
  */
 
+const storage = require("../utils/storage");
+
 const EMOJIS = {
   // Global Unicode fallback symbols to display on any client/guild without custom uploads.
   global: {
@@ -62,23 +64,36 @@ module.exports = {
    * otherwise, it falls back to the global Unicode fallback character.
    * @param {import('discord.js').Client} client - The active Discord client.
    * @param {string} name - The name of the emoji to resolve.
+   * @param {string} [guildId] - Optional guild ID to check for custom emoji settings.
    * @returns {string} The formatted Discord custom emoji string or global Unicode fallback character.
    */
-  resolve(client, name) {
-    const customString = EMOJIS.custom[name];
-    if (customString) {
-      // Extract the Snowflake ID from Discord formatted emoji string: <:name:snowflake_id>
-      const match = customString.match(/:(\d+)>$/);
-      if (match) {
-        const emojiId = match[1];
-        // Validate if client has cache access to this snowflake
-        const hasEmoji = client.emojis.cache.has(emojiId);
-        if (hasEmoji) {
-          return customString;
+  resolve(client, name, guildId) {
+    // Check if custom emojis are enabled for the specific guild (default: enabled if not specified)
+    const customEnabled = guildId ? storage.get("settings", `custom_emojis_${guildId}`) !== false : true;
+
+    if (customEnabled) {
+      // 1. Check for guild-specific override in persistent storage
+      if (guildId) {
+        const guildEmojis = storage.get("custom_emoji_mappings", guildId);
+        if (guildEmojis && guildEmojis[name]) {
+          return guildEmojis[name];
+        }
+      }
+
+      // 2. Fall back to template-defined custom emoji
+      const customString = EMOJIS.custom[name];
+      if (customString) {
+        const match = customString.match(/:(\d+)>$/);
+        if (match) {
+          const emojiId = match[1];
+          if (client.emojis.cache.has(emojiId)) {
+            return customString;
+          }
         }
       }
     }
-    // Fall back to unicode global fallback if custom is not found or not accessible
+
+    // 3. Fall back to global Unicode character
     return EMOJIS.global[name] || "";
   }
 };
