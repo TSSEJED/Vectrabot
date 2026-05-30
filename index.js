@@ -98,6 +98,8 @@ if (welcomeSystem && typeof welcomeSystem.init === "function") {
   client.logger.info("Initialized specialized addon logic: WelcomeSystem");
 }
 
+const ticketSystem = require("./addons/utility/tickets");
+
 const jtcSystem = require("./addons/utility/join-to-create");
 if (jtcSystem && typeof jtcSystem.init === "function") {
   jtcSystem.init(client);
@@ -193,6 +195,11 @@ client.once("clientReady", async () => {
 
 // 6. Build integrated slash commands router and event router
 client.on("interactionCreate", async (interaction) => {
+  // Route specialized Ticket interactions
+  if (interaction.isButton() && interaction.customId.startsWith("ticket_")) {
+    return ticketSystem.handleInteraction(interaction, client);
+  }
+
   // Route Button Interactions
   if (interaction.isButton()) {
     if (interaction.customId === "ga_enter") {

@@ -21,6 +21,16 @@ export default function Docs() {
       id: 'config',
       title: '4. Customization (No-Code)',
       content: 'Vectrabot is built for white-labeling. Use /bot-config to change the bot name and accent colors globally. Use /emoji to swap the default Unicode icons for your server\'s own custom emojis.'
+    },
+    {
+      id: 'tickets',
+      title: '5. Advanced Ticket System',
+      content: 'The ticket module provides a professional-grade support interface. It features specialized button routing, staff claiming logic, and automated transcript archiving.',
+      list: [
+        'Transcripts: Generated using Nexus Transcripts, providing interactive HTML backups with 8 selectable themes.',
+        'Persistence: Active ticket IDs and claimant metadata are stored persistently in JSON storage.',
+        'Logs: Integrated with the Audit Log system to archive support interactions.'
+      ]
     }
   ];
 

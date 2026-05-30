@@ -7,6 +7,7 @@ export default function Commands() {
     { cmd: '/welcome', desc: 'Configure customizable join and leave messages.', perm: 'Administrator' },
     { cmd: '/jtc', desc: 'Setup "Join to Create" voice room automation.', perm: 'Administrator' },
     { cmd: '/server-stats', desc: 'Configure real-time server statistics channels.', perm: 'Administrator' },
+    { cmd: '/ticket', desc: 'Configure and deploy the advanced ticket system.', perm: 'Administrator' },
     { cmd: '/giveaway', desc: 'Launch and manage persistent server giveaways.', perm: 'Manage Events' },
     { cmd: '/stats', desc: 'Display system hardware and cache metrics.', perm: 'Everyone' },
     { cmd: '/ping', desc: 'Calculate gateway and connection latency.', perm: 'Everyone' },
