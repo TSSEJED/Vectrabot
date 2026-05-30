@@ -1,192 +1,49 @@
-```markdown
-# Vectrabot
+# 📡 Vectrabot Core
 
-A production-ready, highly optimized enterprise Discord bot template developed by **Cortex HQ**. This template is fully pre-wired to leverage Discord Components V2 layout options, a centralized event-driven client logger, and a modular plug-and-play plugin architecture.
+Vectrabot is a production-ready, enterprise Discord bot core template designed for **bot-hosting.net**. It features a robust architecture, high-performance command handling, and deep integration with Discord's next-generation component engine.
 
-## Features
+## 🚀 Key Features
 
-- **Modular Architecture**: Plug-and-play addon system for easy command expansion
-- **Centralized Logging**: Unified logging system with console output and Discord channel broadcasting
-- **Components V2 Support**: Built-in support for Discord's latest component layouts
-- **Dynamic Emoji Resolution**: Automatic fallback to Unicode when custom emojis are unavailable
-- **Enterprise-Ready**: Production-tested codebase with proper error handling
-- **Next.js Wiki Dashboard**: Premium dashboard for documentation and management (optional)
+*   **Persistent Storage**: Built-in JSON-based persistence ensures that giveaways, configurations, and state survive bot restarts.
+*   **Advanced Giveaway System**: timed giveaways with persistent entries, crash recovery, and reroll capabilities.
+*   **Audit Logging**: Detailed tracking of message edits/deletions, member activity, and server changes.
+*   **Voice Automation**: "Join to Create" temporary voice rooms with full owner management.
+*   **Community Automation**: Customizable welcome and goodbye messages with placeholders and DM support.
+*   **Dynamic Emoji System**: Support for both global Unicode and custom guild-specific emojis via an admin toggle.
+*   **Advanced Stats**: Real-time server metrics (member/bot/role counts) displayed in channel names.
+*   **Configuration Suite**: Manage the entire bot experience (identity, logs, emojis) through intuitive slash commands.
 
-## Architecture
+## 🛠️ Getting Started
 
-```mermaid
-graph TD
-    A[Discord Client index.js] --> B[Centralized Logger client.logger]
-    A --> C[Command Loader fs.readdir]
-    C --> D[core_commands/ help & support]
-    C --> E[addons/ custom plugins]
-    A --> F[REST API applicationCommands]
-    B --> G[Console Logger Output]
-    B --> H[Discord Logs Channel Components V2]
+### Prerequisites
 
-```
+*   Node.js 16.11.0 or higher.
+*   A Discord Bot Token from the [Discord Developer Portal](https://discord.com/developers/applications).
 
-### Project Structure
+### Installation
 
-* **index.js**: Main Discord client entry point with event handling and command loading
-* **config/emojis.js**: Immutable asset registry of fallback Unicode symbols and Guild snowflake custom placeholders. Features a dynamic resolver helper (`Emojis.resolve(client, name)`) which checks client caches to auto-fallback to Unicode when custom emojis are unavailable
-* **utils/logger.js**: Centralized event logging system exposing channel broadcasters and console outputs
-* **core_commands/**: Preconfigured Components V2 Commands (`/help` and `/support`) utilizing the `IS_COMPONENTS_V2` bitwise flags `(1 << 15)`
-* **addons/**: Dedicated folder to drop modular custom command plugins with runtime load validation
-* **website/**: Premium, high-converting Next.js wiki dashboard optimized for Vercel Edge (optional)
+1.  Clone the repository.
+2.  Install dependencies:
+    ```bash
+    npm install
+    ```
+3.  Copy `.env.example` to `.env` and fill in your details:
+    ```bash
+    cp .env.example .env
+    ```
+4.  Start the bot:
+    ```bash
+    npm start
+    ```
 
-## Prerequisites
+## 📜 Documentation
 
-* Node.js 16.0 or higher
-* npm or yarn package manager
-* Discord Bot Token from the [Discord Developer Portal](https://discord.com/developers/applications)
-* Discord Application ID
-* (Optional) Admin Log Channel ID
+For detailed guides, command lists, and feature breakdowns, visit our web-based documentation:
+`/website docs`
 
-## Installation
+## 🛡️ License
 
-### Step 1: Clone or Download
-
-Clone this repository or download the source code to your local machine.
-
-### Step 2: Install Dependencies
-
-Navigate to the project root and install the required packages:
-
-```bash
-npm install
-
-```
-
-### Step 3: Configure Environment Variables
-
-Copy the `.env.example` file to `.env` and populate it with your credentials:
-
-```bash
-cp .env.example .env
-
-```
-
-Edit the `.env` file with your specific values:
-
-```env
-DISCORD_TOKEN=your_discord_bot_secret_token_here
-DISCORD_CLIENT_ID=your_discord_application_id_here
-LOG_CHANNEL_ID=your_discord_admin_log_channel_id_here
-BOT_NAME=Vectrabot
-
-# Optional: Level-specific logging channels
-INFO_LOG_CHANNEL_ID=your_discord_info_log_channel_id_here
-WARN_LOG_CHANNEL_ID=your_discord_warn_log_channel_id_here
-ERROR_LOG_CHANNEL_ID=your_discord_error_log_channel_id_here
-COMMAND_LOG_CHANNEL_ID=your_discord_command_log_channel_id_here
-
-```
-
-### Step 4: Run the Bot
-
-Start the Discord client:
-
-```bash
-npm start
-
-```
-
-For development mode:
-
-```bash
-npm run dev
-
-```
-
-## Building Custom Add-Ons
-
-Creating custom commands is simple. Add new files to the `addons/` directory. Each command must export a valid Discord command schema:
-
-```javascript
-const { SlashCommandBuilder } = require("discord.js");
-const Emojis = require("../config/emojis");
-
-module.exports = {
-  data: new SlashCommandBuilder()
-    .setName("ping")
-    .setDescription("Query bot gateway latency"),
-
-  async execute(interaction, client) {
-    const latency = client.ws.ping;
-    await interaction.reply({
-      content: `${Emojis.global.satellite} **Gateway Latency:** ${latency}ms`,
-      ephemeral: true
-    });
-  }
-};
-
-```
-
-The bot will automatically load and validate any commands placed in the `addons/` directory on startup.
-
-## Deploying the Next.js Wiki Dashboard (Optional)
-
-The `website/` directory contains a premium Next.js App Router application designed for the Vercel Edge Network.
-
-### Deploying on Vercel
-
-1. Connect your GitHub repository to Vercel
-2. Select the website subdirectory as the root directory of your Vercel project
-3. Configure your apex domain in the Vercel Dashboard routing options
-4. Deploy!
-
-### Local Development
-
-To run the website locally:
-
-```bash
-cd website
-npm install
-npm run dev
-
-```
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Required | Description |
-| --- | --- | --- |
-| `DISCORD_TOKEN` | Yes | Your bot's token from Discord Developer Portal |
-| `DISCORD_CLIENT_ID` | Yes | Your application's ID from Discord Developer Portal |
-| `LOG_CHANNEL_ID` | Yes | Channel ID for general bot logs |
-| `BOT_NAME` | No | Display name for your bot (default: Vectrabot) |
-| `INFO_LOG_CHANNEL_ID` | No | Channel for info-level logs |
-| `WARN_LOG_CHANNEL_ID` | No | Channel for warning-level logs |
-| `ERROR_LOG_CHANNEL_ID` | No | Channel for error-level logs |
-| `COMMAND_LOG_CHANNEL_ID` | No | Channel for command execution logs |
-
-## Legal & Compliance
-
-This template includes legal boilerplates for self-hosted instances under:
-
-* `website/src/app/tos/page.js` (Terms of Service)
-* `website/src/app/privacy/page.js` (Privacy Policy)
-
-Ensure you update these documents to comply with your local regional laws and bot-hosting platform policies.
-
-## Support
-
-For template support and documentation, visit: [sejed.dev/support-cortex](https://sejed.dev/support-cortex)
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Credits
-
-Developed by **Cortex HQ**
+This project is licensed under the **AGPL-3.0-only** License. See the `LICENSE` file for details.
 
 ---
-
-**Note**: This is a template designed for rapid Discord bot development. Customize it to fit your specific needs and requirements.
-
-```
-
-```
+© 2026 Cortex HQ & bot-hosting.net
