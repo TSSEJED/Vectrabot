@@ -25,6 +25,11 @@ module.exports = {
         .addStringOption(opt => opt.setName("color").setDescription("The hex color code (e.g. #3b82f6).").setRequired(true))
     )
     .addSubcommand(sub =>
+      sub.setName("toggle-logging")
+        .setDescription("Enable or disable all Discord-based logging for this server.")
+        .addBooleanOption(opt => opt.setName("enabled").setDescription("Status").setRequired(true))
+    )
+    .addSubcommand(sub =>
       sub.setName("status")
         .setDescription("View current bot configuration.")
     )
@@ -71,6 +76,17 @@ module.exports = {
       });
     }
 
+    if (subcommand === "toggle-logging") {
+      const enabled = interaction.options.getBoolean("enabled");
+      config.loggingEnabled = enabled;
+      storage.set("bot_identity", guildId, config);
+
+      return interaction.reply({
+        content: `${Emojis.resolve(client, enabled ? "success" : "error", guildId)} **Global Logging ${enabled ? "Enabled" : "Disabled"}:** Discord log broadcasts are now ${enabled ? "active" : "silenced"}.`,
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
     if (subcommand === "reset") {
       storage.delete("bot_identity", guildId);
       return interaction.reply({
@@ -82,15 +98,17 @@ module.exports = {
     if (subcommand === "status") {
       const currentName = config.displayName || process.env.BOT_NAME || "Vectrabot";
       const currentColor = config.embedColor ? `#${config.embedColor}` : "#3b82f6";
+      const logStatus = config.loggingEnabled !== false ? "✅ Enabled" : "❌ Disabled";
 
       const embed = new EmbedBuilder()
         .setColor(config.embedColor ? parseInt(config.embedColor, 16) : 0x3b82f6)
         .setTitle(`${Emojis.resolve(client, "satellite", guildId)} Bot Identity Status`)
         .addFields(
           { name: "Display Name", value: `\`${currentName}\``, inline: true },
-          { name: "Embed Color", value: `\`${currentColor}\``, inline: true }
+          { name: "Embed Color", value: `\`${currentColor}\``, inline: true },
+          { name: "Global Logging", value: `\`${logStatus}\``, inline: true }
         )
-        .setFooter({ text: "Use /bot-config set-name or set-color to change these settings." })
+        .setFooter({ text: "Use /bot-config set-name, set-color, or toggle-logging to change these settings." })
         .setTimestamp();
 
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });

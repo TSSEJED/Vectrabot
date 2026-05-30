@@ -93,6 +93,10 @@ class Logger {
     let channelId = null;
 
     if (guildId) {
+      // 0. Check if global logging is disabled for this guild
+      const botConfig = storage.get("bot_identity", guildId) || {};
+      if (botConfig.loggingEnabled === false) return;
+
       // Try guild-specific persistent storage first
       const guildLogs = storage.get("logs", guildId) || {};
       channelId = guildLogs[level.toLowerCase()] || guildLogs.general;

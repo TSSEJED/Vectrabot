@@ -58,6 +58,22 @@ module.exports = {
               { name: "Audit / Server Events", value: "audit" }
             )
         )
+    )
+    .addSubcommand(sub =>
+      sub.setName("audit-toggle")
+        .setDescription("Enable or disable specific audit log categories.")
+        .addStringOption(opt =>
+          opt.setName("category")
+            .setDescription("The audit category to toggle.")
+            .setRequired(true)
+            .addChoices(
+              { name: "All Audit Events", value: "all" },
+              { name: "Messages (Edit/Delete)", value: "messages" },
+              { name: "Members (Join/Leave)", value: "members" },
+              { name: "Server (Channels/Roles)", value: "server" }
+            )
+        )
+        .addBooleanOption(opt => opt.setName("enabled").setDescription("Status").setRequired(true))
     ),
 
   /**
@@ -110,6 +126,25 @@ module.exports = {
       });
     }
 
+    if (subcommand === "audit-toggle") {
+      const category = interaction.options.getString("category");
+      const enabled = interaction.options.getBoolean("enabled");
+      const guildLogs = storage.get("logs", guildId) || {};
+
+      if (category === "all") {
+        guildLogs.audit_disabled = !enabled;
+      } else {
+        guildLogs[`audit_${category}_enabled`] = enabled;
+      }
+
+      storage.set("logs", guildId, guildLogs);
+
+      return interaction.reply({
+        content: `${Emojis.resolve(client, "success", guildId)} **Audit Category Updated:** \`${category.toUpperCase()}\` is now **${enabled ? "Enabled" : "Disabled"}**.`,
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
     // Default: status subcommand
     // Check persistent config first
     const guildLogs = storage.get("logs", guildId) || {};
@@ -137,6 +172,13 @@ module.exports = {
       ? `${Emojis.resolve(client, "web", guildId)} **Fallback Log Channel:** <#${generalId}> (\`${generalId}\`)`
       : `${Emojis.resolve(client, "error", guildId)} **Fallback Log Channel:** \`Disabled\``;
 
+    const auditStatus = (cat) => {
+      const enabled = guildLogs[`audit_${cat}_enabled`] !== false;
+      return enabled ? "✅" : "❌";
+    };
+
+    const overallAudit = guildLogs.audit_disabled ? "❌ Disabled" : "✅ Enabled";
+
     const payload = {
       flags: 1 << 15,
       components: [
@@ -146,7 +188,14 @@ module.exports = {
           components: [
             {
               type: 10, // TextDisplay
-              content: `# ${Emojis.resolve(client, "satellite", guildId)} ${botName} Logging Configuration Matrix\nConfigure level-specific log channels persistently for this guild.`
+              content: `# ${Emojis.resolve(client, "satellite", guildId)} ${botName} Logging Configuration Matrix\nConfigure level-specific log channels and audit categories persistently.`
+            },
+            {
+              type: 14 // Separator
+            },
+            {
+              type: 10, // TextDisplay
+              content: `**Audit Categories:**\n• Overall: ${overallAudit}\n• Messages: ${auditStatus("messages")}\n• Members: ${auditStatus("members")}\n• Server: ${auditStatus("server")}`
             },
             {
               type: 14 // Separator

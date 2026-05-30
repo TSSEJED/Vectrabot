@@ -8,6 +8,7 @@
 
 const { EmbedBuilder, AuditLogEvent } = require("discord.js");
 const Emojis = require("../../config/emojis");
+const storage = require("../../utils/storage");
 
 module.exports = {
   name: "AuditLogs",
@@ -17,9 +18,23 @@ module.exports = {
    * @param {import('discord.js').Client} client
    */
   init(client) {
+    /**
+     * Check if a specific audit category is enabled for a guild.
+     * @param {string} guildId
+     * @param {string} category
+     * @returns {boolean}
+     */
+    const isEnabled = (guildId, category) => {
+      const config = storage.get("logs", guildId) || {};
+      // Default to true if not explicitly disabled, but overall audit must be enabled
+      if (config.audit_disabled) return false;
+      return config[`audit_${category}_enabled`] !== false;
+    };
+
     // 1. Message Deletion
     client.on("messageDelete", async (message) => {
       if (!message.guild || message.author?.bot) return;
+      if (!isEnabled(message.guildId, "messages")) return;
 
       const embed = new EmbedBuilder()
         .setColor(0xef4444) // Red
@@ -35,6 +50,7 @@ module.exports = {
     client.on("messageUpdate", async (oldMessage, newMessage) => {
       if (!newMessage.guild || newMessage.author?.bot) return;
       if (oldMessage.content === newMessage.content) return;
+      if (!isEnabled(newMessage.guildId, "messages")) return;
 
       const embed = new EmbedBuilder()
         .setColor(0x3b82f6) // Blue
@@ -51,6 +67,7 @@ module.exports = {
 
     // 3. Member Join
     client.on("guildMemberAdd", async (member) => {
+      if (!isEnabled(member.guild.id, "members")) return;
       const embed = new EmbedBuilder()
         .setColor(0x10b981) // Green
         .setTitle(`${Emojis.resolve(client, "success", member.guild.id)} Member Joined`)
@@ -63,6 +80,7 @@ module.exports = {
 
     // 4. Member Leave
     client.on("guildMemberRemove", async (member) => {
+      if (!isEnabled(member.guild.id, "members")) return;
       const embed = new EmbedBuilder()
         .setColor(0xf59e0b) // Amber
         .setTitle(`${Emojis.resolve(client, "support", member.guild.id)} Member Left`)
@@ -76,6 +94,7 @@ module.exports = {
     // 5. Channel Creation
     client.on("channelCreate", async (channel) => {
       if (!channel.guild) return;
+      if (!isEnabled(channel.guild.id, "server")) return;
       const embed = new EmbedBuilder()
         .setColor(0x10b981)
         .setTitle(`${Emojis.resolve(client, "success", channel.guild.id)} Channel Created`)
@@ -88,6 +107,7 @@ module.exports = {
     // 6. Channel Deletion
     client.on("channelDelete", async (channel) => {
       if (!channel.guild) return;
+      if (!isEnabled(channel.guild.id, "server")) return;
       const embed = new EmbedBuilder()
         .setColor(0xef4444)
         .setTitle(`${Emojis.resolve(client, "error", channel.guild.id)} Channel Deleted`)
@@ -99,6 +119,7 @@ module.exports = {
 
     // 7. Role Creation
     client.on("roleCreate", async (role) => {
+      if (!isEnabled(role.guild.id, "server")) return;
       const embed = new EmbedBuilder()
         .setColor(0x10b981)
         .setTitle(`${Emojis.resolve(client, "success", role.guild.id)} Role Created`)
@@ -110,6 +131,7 @@ module.exports = {
 
     // 8. Role Deletion
     client.on("roleDelete", async (role) => {
+      if (!isEnabled(role.guild.id, "server")) return;
       const embed = new EmbedBuilder()
         .setColor(0xef4444)
         .setTitle(`${Emojis.resolve(client, "error", role.guild.id)} Role Deleted`)
