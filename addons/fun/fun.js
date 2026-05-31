@@ -6,7 +6,7 @@
  * © 2026 Cortex HQ & bot-hosting.net
  */
 
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 const Emojis = require("../../config/emojis");
 const storage = require("../../utils/storage");
 
@@ -60,51 +60,52 @@ module.exports = {
     const subcommand = interaction.options.getSubcommand();
     const guildId = interaction.guildId;
     const botConfig = storage.get("bot_identity", guildId) || {};
-    const embedColor = botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x3b82f6;
+    const accentColor = botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x3b82f6;
 
     if (subcommand === "8ball") {
-
-    const responses = [
-      "It is certain.", "It is decidedly so.", "Without a doubt.", "Yes definitely.",
-      "You may rely on it.", "As I see it, yes.", "Most likely.", "Outlook good.",
-      "Yes.", "Signs point to yes.", "Reply hazy, try again.", "Ask again later.",
-      "Better not tell you now.", "Cannot predict now.", "Concentrate and ask again.",
-      "Don't count on it.", "My reply is no.", "My sources say no.",
-      "Outlook not so good.", "Very doubtful.", "Absolutely.", "The stars align for yes.",
-      "Indubitably.", "Count on it.", "Highly probable.", "All signs point to yes.",
-      "You can bet on it.", "Without a shred of doubt.", "The universe says yes.",
-      "Most assuredly.", "Chances are high.", "It is written in the stars.",
-      "Signs are favorable.", "Positively yes.", "The path is clear.",
-      "The answer is a resounding yes.", "Everything points to success.",
-      "Expect it soon.", "Undeniably so.", "The outlook is bright.",
-      "Ask a different way.", "The fog has not lifted yet.", "Cannot say for sure.",
-      "The energy is unclear.", "Check back in a bit.", "The signs are blurry.",
-      "Hard to say right now.", "The cosmos are undecided.", "The future is shifting.",
-      "Wait and see.", "Try asking tomorrow.", "The answer is obscured.",
-      "Not a chance.", "Highly unlikely.", "No way.", "Don't hold your breath.",
-      "The signs point to no.", "My instincts say no.", "Absolutely not.",
-      "The stars say no.", "Doubtful, very doubtful.", "Unlikely to happen.",
-      "The outlook is grim.", "Not in this lifetime.", "Prospects are poor.",
-      "The answers point away from yes.", "Do not expect it.", "Negative.",
-      "The chance is near zero.", "Forget about it.", "It is not meant to be.",
-      "The winds have changed against it.", "Do not count on a positive outcome.",
-      "The current is pulling away from yes.", "All paths lead to no.",
-      "Signs are heavily pointing to no.", "The final answer is no."
-    ];
+      const responses = [
+        "It is certain.", "It is decidedly so.", "Without a doubt.", "Yes definitely.",
+        "You may rely on it.", "As I see it, yes.", "Most likely.", "Outlook good.",
+        "Yes.", "Signs point to yes.", "Reply hazy, try again.", "Ask again later.",
+        "Better not tell you now.", "Cannot predict now.", "Concentrate and ask again.",
+        "Don't count on it.", "My reply is no.", "My sources say no.",
+        "Outlook not so good.", "Very doubtful.", "Absolutely.", "The stars align for yes.",
+        "Indubitably.", "Count on it.", "Highly probable.", "All signs point to yes.",
+        "You can bet on it.", "Without a shred of doubt.", "The universe says yes.",
+        "Most assuredly.", "Chances are high.", "It is written in the stars.",
+        "Signs are favorable.", "Positively yes.", "The path is clear.",
+        "The answer is a resounding yes.", "Everything points to success.",
+        "Expect it soon.", "Undeniably so.", "The outlook is bright.",
+        "Ask a different way.", "The fog has not lifted yet.", "Cannot say for sure.",
+        "The energy is unclear.", "Check back in a bit.", "The signs are blurry.",
+        "Hard to say right now.", "The cosmos are undecided.", "The future is shifting.",
+        "Wait and see.", "Try asking tomorrow.", "The answer is obscured.",
+        "Not a chance.", "Highly unlikely.", "No way.", "Don't hold your breath.",
+        "The signs point to no.", "My instincts say no.", "Absolutely not.",
+        "The stars say no.", "Doubtful, very doubtful.", "Unlikely to happen.",
+        "The outlook is grim.", "Not in this lifetime.", "Prospects are poor.",
+        "The answers point away from yes.", "Do not expect it.", "Negative.",
+        "The chance is near zero.", "Forget about it.", "It is not meant to be.",
+        "The winds have changed against it.", "Do not count on a positive outcome.",
+        "The current is pulling away from yes.", "All paths lead to no.",
+        "Signs are heavily pointing to no.", "The final answer is no."
+      ];
 
       const result = responses[Math.floor(Math.random() * responses.length)];
       const question = interaction.options.getString("question");
 
-      const embed = new EmbedBuilder()
-        .setColor(embedColor)
-        .setTitle(`🎱 Magic 8-Ball`)
-        .addFields(
-          { name: "Question", value: question },
-          { name: "Answer", value: result }
-        )
-        .setTimestamp();
-
-      return interaction.reply({ embeds: [embed] });
+      return interaction.reply({
+        flags: 1 << 15,
+        components: [{
+          type: 17,
+          accent_color: accentColor,
+          components: [
+            { type: 10, content: `# 🎱 Magic 8-Ball` },
+            { type: 14 },
+            { type: 10, content: `**Question:** ${question}\n**Answer:** ${result}` }
+          ]
+        }]
+      });
     }
 
     if (subcommand === "coinflip") {
@@ -113,7 +114,16 @@ module.exports = {
       const icon = isHeads ? "🟡" : "🥈";
 
       return interaction.reply({
-        content: `${Emojis.resolve(client, "satellite", guildId)} The coin spun in the air and landed on: **${result}** ${icon}`
+        flags: 1 << 15,
+        components: [{
+          type: 17,
+          accent_color: accentColor,
+          components: [
+            { type: 10, content: `# 🪙 Coin Flip` },
+            { type: 14 },
+            { type: 10, content: `${Emojis.resolve(client, "satellite", guildId)} The coin spun in the air and landed on: **${result}** ${icon}` }
+          ]
+        }]
       });
     }
 
@@ -123,7 +133,16 @@ module.exports = {
       const result = Math.floor(Math.random() * sides) + 1;
 
       return interaction.reply({
-        content: `${Emojis.resolve(client, "satellite", guildId)} You rolled a **D${sides}** and got: \`${result}\` 🎲`
+        flags: 1 << 15,
+        components: [{
+          type: 17,
+          accent_color: accentColor,
+          components: [
+            { type: 10, content: `# 🎲 Dice Roll` },
+            { type: 14 },
+            { type: 10, content: `${Emojis.resolve(client, "satellite", guildId)} You rolled a **D${sides}** and got: \`${result}\`` }
+          ]
+        }]
       });
     }
 
@@ -181,7 +200,7 @@ module.exports = {
         "Why did the man fall down the well? Because he couldn't see that well!",
         "What do you call a dinosaur that crashes his car? Tyrannosaurus Wrecks!",
         "Why did the helper sleep under the car? Because he wanted to wake up oily!",
-        "What do you call a person with a tan? A puddle!",
+        "What do you call a snowman with a tan? A puddle!",
         "Why did the coffee file a police report? It got mugged!",
         "What do you call a pencil with two erasers? Pointless!",
         "Why did the physics teacher break up with the biology teacher? There was no chemistry!",
@@ -207,7 +226,16 @@ module.exports = {
       const joke = jokes[Math.floor(Math.random() * jokes.length)];
 
       return interaction.reply({
-        content: `${Emojis.resolve(client, "support", guildId)} **Random Joke:** ${joke}`
+        flags: 1 << 15,
+        components: [{
+          type: 17,
+          accent_color: accentColor,
+          components: [
+            { type: 10, content: `# 😂 Random Joke` },
+            { type: 14 },
+            { type: 10, content: `${Emojis.resolve(client, "support", guildId)} **The Bot says:** ${joke}` }
+          ]
+        }]
       });
     }
 
@@ -288,7 +316,16 @@ module.exports = {
       const fact = facts[Math.floor(Math.random() * facts.length)];
 
       return interaction.reply({
-        content: `${Emojis.resolve(client, "info", guildId)} **Did you know?** ${fact}`
+        flags: 1 << 15,
+        components: [{
+          type: 17,
+          accent_color: accentColor,
+          components: [
+            { type: 10, content: `# 💡 Random Fact` },
+            { type: 14 },
+            { type: 10, content: `${Emojis.resolve(client, "info", guildId)} **Did you know?** ${fact}` }
+          ]
+        }]
       });
     }
 
@@ -312,17 +349,18 @@ module.exports = {
         result = "I win! 🤖";
       }
 
-      const embed = new EmbedBuilder()
-        .setColor(embedColor)
-        .setTitle("Rock Paper Scissors")
-        .addFields(
-          { name: "Your Move", value: `${emotes[userChoice]} ${userChoice.toUpperCase()}`, inline: true },
-          { name: "My Move", value: `${emotes[botChoice]} ${botChoice.toUpperCase()}`, inline: true },
-          { name: "Result", value: `**${result}**` }
-        )
-        .setTimestamp();
-
-      return interaction.reply({ embeds: [embed] });
+      return interaction.reply({
+        flags: 1 << 15,
+        components: [{
+          type: 17,
+          accent_color: accentColor,
+          components: [
+            { type: 10, content: `# 🪨 Rock Paper Scissors` },
+            { type: 14 },
+            { type: 10, content: `**Your Move:** ${emotes[userChoice]} ${userChoice.toUpperCase()}\n**My Move:** ${emotes[botChoice]} ${botChoice.toUpperCase()}\n**Result:** **${result}**` }
+          ]
+        }]
+      });
     }
   }
 };

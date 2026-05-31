@@ -71,6 +71,8 @@ function loadCommandsFromDirectory(dirPath, namespace) {
         if (command && typeof command === "object" && command.data && typeof command.execute === "function") {
           client.commands.set(command.data.name, command);
           client.logger.info(`Loaded ${namespace} Command: /${command.data.name} (from ${entry.name})`);
+        } else if (command && typeof command.init === "function") {
+          // Skip warning for specialized initialization-only modules
         } else {
           client.logger.warn(`Skipped invalid command structure at: ${entry.name} (Missing 'data' or 'execute' function)`);
         }
@@ -181,9 +183,19 @@ client.once("clientReady", async () => {
 
             const channel = await client.channels.fetch(data.channelId).catch(() => null);
             if (channel) {
+              const botConfig = storage.get("bot_identity", data.guildId) || {};
               if (winners.length === 0) {
                 await channel.send({
-                  content: `${Emojis.resolve(client, "error", data.guildId)} **Giveaway Concluded!**\nReward: **${data.prize}**\nResult: No winners could be determined as no users entered the giveaway matrix.\nGiveaway ID: \`${id}\``
+                  flags: 1 << 15,
+                  components: [{
+                    type: 17,
+                    accent_color: 0xef4444,
+                    components: [
+                      { type: 10, content: `# ${Emojis.resolve(client, "error", data.guildId)} Giveaway Concluded!` },
+                      { type: 14 },
+                      { type: 10, content: `**Reward:** ${data.prize}\n**Result:** No winners could be determined as no users entered the giveaway matrix.\n**Giveaway ID:** \`${id}\`` }
+                    ]
+                  }]
                 });
               } else {
                 // DM Winners
@@ -198,7 +210,16 @@ client.once("clientReady", async () => {
                 }
 
                 await channel.send({
-                  content: `${Emojis.resolve(client, "success", data.guildId)} **Giveaway Concluded!**\nReward: **${data.prize}**\nWinner(s): ${winners.map(uid => `<@${uid}>`).join(", ")}\nGiveaway ID: \`${id}\``
+                  flags: 1 << 15,
+                  components: [{
+                    type: 17,
+                    accent_color: botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x10b981,
+                    components: [
+                      { type: 10, content: `# ${Emojis.resolve(client, "success", data.guildId)} Giveaway Concluded!` },
+                      { type: 14 },
+                      { type: 10, content: `**Reward:** ${data.prize}\n**Winner(s):** ${winners.map(uid => `<@${uid}>`).join(", ")}\n**Giveaway ID:** \`${id}\`` }
+                    ]
+                  }]
                 });
               }
             }

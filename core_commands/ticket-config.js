@@ -5,7 +5,7 @@
  * © 2026 Cortex HQ & bot-hosting.net
  */
 
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require("discord.js");
 const Emojis = require("../config/emojis");
 const storage = require("../utils/storage");
 
@@ -17,8 +17,10 @@ module.exports = {
     .addSubcommand(sub =>
       sub.setName("panel")
         .setDescription("Create a ticket creation panel in this channel.")
-        .addStringOption(opt => opt.setName("title").setDescription("The title of the embed.").setRequired(true))
-        .addStringOption(opt => opt.setName("description").setDescription("The description of the embed.").setRequired(true))
+        .addStringOption(opt => opt.setName("title").setDescription("The title of the panel.").setRequired(true))
+        .addStringOption(opt => opt.setName("description").setDescription("The description of the panel.").setRequired(true))
+        .addStringOption(opt => opt.setName("button_label").setDescription("Custom label for the open button.").setRequired(false))
+        .addStringOption(opt => opt.setName("button_emoji").setDescription("Custom emoji for the open button.").setRequired(false))
     )
     .addSubcommand(sub =>
       sub.setName("config")
@@ -41,6 +43,8 @@ module.exports = {
     const subcommand = interaction.options.getSubcommand();
     const guildId = interaction.guildId;
     const config = storage.get("tickets", guildId) || { staffRoleId: null };
+    const botConfig = storage.get("bot_identity", guildId) || {};
+    const accentColor = botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x3b82f6;
 
     if (subcommand === "panel") {
       if (!config.staffRoleId) {
@@ -52,19 +56,46 @@ module.exports = {
 
       const title = interaction.options.getString("title");
       const description = interaction.options.getString("description");
+      const buttonLabel = interaction.options.getString("button_label") || "Create Ticket";
+      const buttonEmoji = interaction.options.getString("button_emoji") || "📩";
 
-      const embed = new EmbedBuilder()
-        .setColor(0x3b82f6)
-        .setTitle(title)
-        .setDescription(description)
-        .setFooter({ text: "Community Support Matrix" })
-        .setTimestamp();
+      const payload = {
+        flags: 1 << 15,
+        components: [
+          {
+            type: 17,
+            accent_color: accentColor,
+            components: [
+              { type: 10, content: `# ${title}` },
+              { type: 14 },
+              { type: 10, content: description },
+              { type: 14 },
+              {
+                type: 1,
+                components: [
+                  {
+                    type: 2,
+                    style: 1,
+                    custom_id: "ticket_open",
+                    label: buttonLabel,
+                    emoji: { name: buttonEmoji.includes(":") ? buttonEmoji.split(":")[1] : buttonEmoji, id: buttonEmoji.includes(":") ? buttonEmoji.split(":")[2].replace(">", "") : null }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      };
 
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId("ticket_open").setLabel("Create Ticket").setStyle(ButtonStyle.Primary).setEmoji("📩")
-      );
+      // Handle emoji better
+      const emojiMatch = buttonEmoji.match(/<a?:.+:(\d+)>/);
+      if (emojiMatch) {
+        payload.components[0].components[4].components[0].emoji = { id: emojiMatch[1] };
+      } else {
+        payload.components[0].components[4].components[0].emoji = { name: buttonEmoji };
+      }
 
-      await interaction.channel.send({ embeds: [embed], components: [row] });
+      await interaction.channel.send(payload);
 
       return interaction.reply({
         content: `${Emojis.resolve(client, "success", guildId)} Ticket panel has been deployed.`,
@@ -84,24 +115,34 @@ module.exports = {
       storage.set("tickets", guildId, config);
 
       return interaction.reply({
-        content: `${Emojis.resolve(client, "success", guildId)} **Ticket Configuration Updated!**\nStaff Role: <@&${staffRole.id}>\nCategory: ${category ? `<#${category.id}>` : "`None (Root)`"}\nLogs: ${logs ? `<#${logs.id}>` : "`Audit Log Channel`"}`,
+        flags: 1 << 15,
+        components: [{
+          type: 17,
+          accent_color: 0x10b981,
+          components: [
+            { type: 10, content: `# ${Emojis.resolve(client, "success", guildId)} Ticket Configuration Updated!` },
+            { type: 14 },
+            { type: 10, content: `**Staff Role:** <@&${staffRole.id}>\n**Category:** ${category ? `<#${category.id}>` : "`None (Root)`"}\n**Logs:** ${logs ? `<#${logs.id}>` : "`Audit Log Channel`"}` }
+          ]
+        }],
         flags: MessageFlags.Ephemeral
       });
     }
 
     if (subcommand === "status") {
-      const botConfig = storage.get("bot_identity", guildId) || {};
-      const embed = new EmbedBuilder()
-        .setColor(botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x3b82f6)
-        .setTitle(`${Emojis.resolve(client, "web", guildId)} Ticket System Status`)
-        .addFields(
-          { name: "Staff Role", value: config.staffRoleId ? `<@&${config.staffRoleId}>` : "❌ `Not Set`", inline: true },
-          { name: "Category", value: config.categoryId ? `<#${config.categoryId}>` : "`None`", inline: true },
-          { name: "Logs Channel", value: config.logsChannelId ? `<#${config.logsChannelId}>` : "`Audit Logs`", inline: true }
-        )
-        .setTimestamp();
-
-      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+      return interaction.reply({
+        flags: 1 << 15,
+        components: [{
+          type: 17,
+          accent_color: accentColor,
+          components: [
+            { type: 10, content: `# ${Emojis.resolve(client, "web", guildId)} Ticket System Status` },
+            { type: 14 },
+            { type: 10, content: `**Staff Role:** ${config.staffRoleId ? `<@&${config.staffRoleId}>` : "❌ `Not Set`"}\n**Category:** ${config.categoryId ? `<#${config.categoryId}>` : "`None`"}\n**Logs Channel:** ${config.logsChannelId ? `<#${config.logsChannelId}>` : "`Audit Logs`"}` }
+          ]
+        }],
+        flags: MessageFlags.Ephemeral
+      });
     }
   }
 };

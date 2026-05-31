@@ -1,11 +1,12 @@
 /**
  * @file addons/moderation/moderation.js
  * @description Advanced Moderation Suite including warnings, bans, and timeouts.
+ * Uses Discord Components V2 for rich interaction.
  *
  * © 2026 Cortex HQ & bot-hosting.net
  */
 
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags } = require("discord.js");
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, EmbedBuilder } = require("discord.js");
 const Emojis = require("../../config/emojis");
 const storage = require("../../utils/storage");
 
@@ -90,7 +91,33 @@ module.exports = {
     const subcommand = interaction.options.getSubcommand();
     const guildId = interaction.guildId;
     const botConfig = storage.get("bot_identity", guildId) || {};
-    const embedColor = botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x3b82f6;
+    const accentColor = botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x3b82f6;
+
+    /**
+     * Helper to log moderation actions to the configured moderation log channel.
+     */
+    const logAction = async (action, target, reason, extra = {}) => {
+      const logsConfig = storage.get("logs", guildId) || {};
+      if (logsConfig.moderation_enabled === false || botConfig.loggingEnabled === false) return;
+
+      const embed = new EmbedBuilder()
+        .setColor(action.includes("un") || action.includes("del") ? 0x10b981 : 0xef4444)
+        .setTitle(`${Emojis.resolve(client, "info", guildId)} Moderation Action: ${action.toUpperCase()}`)
+        .addFields(
+          { name: "Target", value: `${target.tag} (\`${target.id}\`)`, inline: true },
+          { name: "Moderator", value: `${interaction.user.tag}`, inline: true },
+          { name: "Reason", value: reason }
+        )
+        .setTimestamp();
+
+      if (Object.keys(extra).length) {
+        for (const [key, value] of Object.entries(extra)) {
+          embed.addFields({ name: key, value: String(value), inline: true });
+        }
+      }
+
+      await client.logger.broadcastEmbed(guildId, "moderation", embed);
+    };
 
     // Helper for duration parsing
     const parseDuration = (input) => {
@@ -118,25 +145,25 @@ module.exports = {
       warnings.push(newWarn);
       storage.set("warnings", `${guildId}_${target.id}`, warnings);
 
-      client.logger.info(`User ${target.tag} warned in ${guildId} by ${interaction.user.tag}: ${reason}`);
-
-      const embed = new EmbedBuilder()
-        .setColor(0xf59e0b) // Amber
-        .setTitle(`${Emojis.resolve(client, "support", guildId)} Warning Issued`)
-        .addFields(
-          { name: "Target", value: `${target.tag} (\`${target.id}\`)`, inline: true },
-          { name: "Moderator", value: `${interaction.user.tag}`, inline: true },
-          { name: "Warning ID", value: `\`${warnId}\``, inline: true },
-          { name: "Reason", value: reason }
-        )
-        .setTimestamp();
+      await logAction("warn", target, reason, { "Warning ID": warnId });
 
       // Try to DM the user
       await target.send({
         content: `${Emojis.resolve(client, "error", guildId)} You have been warned in **${interaction.guild.name}**.\n**Reason:** ${reason}\n**Warning ID:** \`${warnId}\``
       }).catch(() => null);
 
-      return interaction.reply({ embeds: [embed] });
+      return interaction.reply({
+        flags: 1 << 15,
+        components: [{
+          type: 17,
+          accent_color: 0xf59e0b, // Amber
+          components: [
+            { type: 10, content: `# ${Emojis.resolve(client, "support", guildId)} Warning Issued` },
+            { type: 14 },
+            { type: 10, content: `**Target:** ${target.tag} (\`${target.id}\`)\n**Moderator:** ${interaction.user.tag}\n**Warning ID:** \`${warnId}\`\n**Reason:** ${reason}` }
+          ]
+        }]
+      });
     }
 
     if (subcommand === "delwarn") {
@@ -155,10 +182,24 @@ module.exports = {
       }
 
       storage.set("warnings", `${guildId}_${target.id}`, warnings);
-      client.logger.info(`Warning ${warnId} removed from ${target.tag} in ${guildId} by ${interaction.user.tag}`);
+      await logAction("delwarn", target, "Warning removed by moderator.", { "Warning ID": warnId });
+
+      // Notify User
+      await target.send({
+        content: `${Emojis.resolve(client, "success", guildId)} One of your warnings has been removed in **${interaction.guild.name}**.\n**Warning ID:** \`${warnId}\``
+      }).catch(() => null);
 
       return interaction.reply({
-        content: `${Emojis.resolve(client, "success", guildId)} Warning \`${warnId}\` has been successfully removed from ${target.tag}.`
+        flags: 1 << 15,
+        components: [{
+          type: 17,
+          accent_color: 0x10b981, // Green
+          components: [
+            { type: 10, content: `# ${Emojis.resolve(client, "success", guildId)} Warning Deleted` },
+            { type: 14 },
+            { type: 10, content: `Warning \`${warnId}\` has been successfully removed from **${target.tag}**.` }
+          ]
+        }]
       });
     }
 
@@ -166,21 +207,27 @@ module.exports = {
       const target = interaction.options.getUser("user");
       const warnings = storage.get("warnings", `${guildId}_${target.id}`) || [];
 
-      const embed = new EmbedBuilder()
-        .setColor(embedColor)
-        .setTitle(`${Emojis.resolve(client, "info", guildId)} Moderation History: ${target.tag}`)
-        .setThumbnail(target.displayAvatarURL());
-
+      let historyText = "";
       if (warnings.length === 0) {
-        embed.setDescription("This user has a clean record in this guild.");
+        historyText = "This user has a clean record in this guild.";
       } else {
-        const history = warnings.map(w =>
+        historyText = warnings.map(w =>
           `**ID:** \`${w.id}\` | **Mod:** <@${w.moderatorId}>\n**Date:** <t:${Math.floor(w.timestamp / 1000)}:R>\n**Reason:** ${w.reason}`
-        ).join("\n\n");
-        embed.setDescription(history.slice(0, 4096));
+        ).join("\n\n").slice(0, 4000);
       }
 
-      return interaction.reply({ embeds: [embed] });
+      return interaction.reply({
+        flags: 1 << 15,
+        components: [{
+          type: 17,
+          accent_color: accentColor,
+          components: [
+            { type: 10, content: `# ${Emojis.resolve(client, "info", guildId)} Moderation History: ${target.tag}` },
+            { type: 14 },
+            { type: 10, content: historyText }
+          ]
+        }]
+      });
     }
 
     // --- Ban Management ---
@@ -198,8 +245,10 @@ module.exports = {
       }
 
       let durationMs = null;
+      let durationStr = "";
       if (subcommand === "timeban") {
-        durationMs = parseDuration(interaction.options.getString("duration"));
+        durationStr = interaction.options.getString("duration");
+        durationMs = parseDuration(durationStr);
         if (!durationMs) {
           return interaction.reply({
             content: `${Emojis.resolve(client, "error", guildId)} Invalid duration format. Use \`1h\`, \`1d\`, etc.`,
@@ -210,7 +259,7 @@ module.exports = {
 
       // DM user first
       await targetUser.send({
-        content: `${Emojis.resolve(client, "error", guildId)} You have been banned from **${interaction.guild.name}**.\n**Reason:** ${reason}${durationMs ? `\n**Duration:** ${interaction.options.getString("duration")}` : ""}`
+        content: `${Emojis.resolve(client, "error", guildId)} You have been banned from **${interaction.guild.name}**.\n**Reason:** ${reason}${durationMs ? `\n**Duration:** ${durationStr}` : ""}`
       }).catch(() => null);
 
       await interaction.guild.members.ban(targetUser.id, {
@@ -232,6 +281,11 @@ module.exports = {
         setTimeout(async () => {
           try {
             await interaction.guild.members.unban(targetUser.id, "Temporary ban expired.");
+            // Notify User
+            await targetUser.send({
+              content: `${Emojis.resolve(client, "success", guildId)} Your temporary ban in **${interaction.guild.name}** has expired.`
+            }).catch(() => null);
+
             let currentActions = storage.get("timed_actions", "bans") || [];
             currentActions = currentActions.filter(a => !(a.guildId === guildId && a.userId === targetUser.id));
             storage.set("timed_actions", "bans", currentActions);
@@ -239,10 +293,19 @@ module.exports = {
         }, durationMs);
       }
 
-      client.logger.info(`${subcommand === "timeban" ? "Timed Ban" : "Ban"} issued for ${targetUser.tag} in ${guildId} by ${interaction.user.tag}`);
+      await logAction(subcommand, targetUser, reason, durationMs ? { "Duration": durationStr } : {});
 
       return interaction.reply({
-        content: `${Emojis.resolve(client, "success", guildId)} Successfully ${subcommand === "timeban" ? "temporarily " : ""}banned **${targetUser.tag}**.\n**Reason:** ${reason}`
+        flags: 1 << 15,
+        components: [{
+          type: 17,
+          accent_color: 0xef4444, // Red
+          components: [
+            { type: 10, content: `# ${Emojis.resolve(client, "error", guildId)} User Banned` },
+            { type: 14 },
+            { type: 10, content: `Successfully ${subcommand === "timeban" ? "temporarily " : ""}banned **${targetUser.tag}**.\n**Reason:** ${reason}${durationMs ? `\n**Duration:** ${durationStr}` : ""}` }
+          ]
+        }]
       });
     }
 
@@ -253,15 +316,31 @@ module.exports = {
       try {
         await interaction.guild.members.unban(targetId, `${interaction.user.tag}: ${reason}`);
 
+        // Notify User
+        const user = await client.users.fetch(targetId).catch(() => null);
+        if (user) {
+          await user.send({
+            content: `${Emojis.resolve(client, "success", guildId)} You have been unbanned from **${interaction.guild.name}**.\n**Reason:** ${reason}`
+          }).catch(() => null);
+          await logAction("unban", user, reason);
+        }
+
         // Remove from timed actions if present
         let currentActions = storage.get("timed_actions", "bans") || [];
         currentActions = currentActions.filter(a => !(a.guildId === guildId && a.userId === targetId));
         storage.set("timed_actions", "bans", currentActions);
 
-        client.logger.info(`User ${targetId} unbanned in ${guildId} by ${interaction.user.tag}`);
-
         return interaction.reply({
-          content: `${Emojis.resolve(client, "success", guildId)} Successfully unbanned user ID \`${targetId}\`.`
+          flags: 1 << 15,
+          components: [{
+            type: 17,
+            accent_color: 0x10b981, // Green
+            components: [
+              { type: 10, content: `# ${Emojis.resolve(client, "success", guildId)} User Unbanned` },
+              { type: 14 },
+              { type: 10, content: `Successfully unbanned user ID \`${targetId}\`.\n**Reason:** ${reason}` }
+            ]
+          }]
         });
       } catch (error) {
         return interaction.reply({
@@ -303,10 +382,19 @@ module.exports = {
         content: `${Emojis.resolve(client, "error", guildId)} You have been timed out in **${interaction.guild.name}** for **${durationStr}**.\n**Reason:** ${reason}`
       }).catch(() => null);
 
-      client.logger.info(`Timeout issued for ${targetUser.tag} in ${guildId} by ${interaction.user.tag}: ${durationStr}`);
+      await logAction("mute", targetUser, reason, { "Duration": durationStr });
 
       return interaction.reply({
-        content: `${Emojis.resolve(client, "success", guildId)} **${targetUser.tag}** has been timed out for ${durationStr}.\n**Reason:** ${reason}`
+        flags: 1 << 15,
+        components: [{
+          type: 17,
+          accent_color: 0xf59e0b, // Amber
+          components: [
+            { type: 10, content: `# ${Emojis.resolve(client, "support", guildId)} User Muted` },
+            { type: 14 },
+            { type: 10, content: `**${targetUser.tag}** has been timed out for ${durationStr}.\n**Reason:** ${reason}` }
+          ]
+        }]
       });
     }
 
@@ -321,10 +409,24 @@ module.exports = {
 
       await member.timeout(null, `${interaction.user.tag}: ${reason}`);
 
-      client.logger.info(`Timeout removed for ${targetUser.tag} in ${guildId} by ${interaction.user.tag}`);
+      // Notify User
+      await targetUser.send({
+        content: `${Emojis.resolve(client, "success", guildId)} Your timeout in **${interaction.guild.name}** has been removed.`
+      }).catch(() => null);
+
+      await logAction("unmute", targetUser, reason);
 
       return interaction.reply({
-        content: `${Emojis.resolve(client, "success", guildId)} Successfully removed timeout from **${targetUser.tag}**.`
+        flags: 1 << 15,
+        components: [{
+          type: 17,
+          accent_color: 0x10b981, // Green
+          components: [
+            { type: 10, content: `# ${Emojis.resolve(client, "success", guildId)} User Unmuted` },
+            { type: 14 },
+            { type: 10, content: `Successfully removed timeout from **${targetUser.tag}**.` }
+          ]
+        }]
       });
     }
   }

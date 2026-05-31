@@ -7,7 +7,7 @@
  * © 2026 Cortex HQ & bot-hosting.net
  */
 
-const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require("discord.js");
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, EmbedBuilder } = require("discord.js");
 const Emojis = require("../../config/emojis");
 const storage = require("../../utils/storage");
 
@@ -42,6 +42,33 @@ module.exports = {
    */
   async execute(interaction, client) {
     const subcommand = interaction.options.getSubcommand();
+    const guildId = interaction.guildId;
+
+    /**
+     * Helper to log giveaway events.
+     */
+    const logGiveaway = async (action, giveawayId, prize, extra = {}) => {
+      const botConfig = storage.get("bot_identity", guildId) || {};
+      const logsConfig = storage.get("logs", guildId) || {};
+      if (logsConfig.giveaways_enabled === false || botConfig.loggingEnabled === false) return;
+
+      const embed = new EmbedBuilder()
+        .setColor(0x8b5cf6)
+        .setTitle(`${Emojis.resolve(client, "info", guildId)} Giveaway Event: ${action.toUpperCase()}`)
+        .addFields(
+          { name: "Giveaway ID", value: `\`${giveawayId}\``, inline: true },
+          { name: "Prize", value: prize, inline: true }
+        )
+        .setTimestamp();
+
+      if (Object.keys(extra).length) {
+        for (const [key, value] of Object.entries(extra)) {
+          embed.addFields({ name: key, value: String(value), inline: true });
+        }
+      }
+
+      await client.logger.broadcastEmbed(guildId, "giveaways", embed);
+    };
 
     if (subcommand === "end") {
       const messageId = interaction.options.getString("id");
@@ -50,7 +77,7 @@ module.exports = {
       if (!giveaway) {
         return interaction.reply({
           content: `${Emojis.resolve(client, "error", interaction.guildId)} **System Error:** No active giveaway found with ID \`${messageId}\`.`,
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         });
       }
 
@@ -62,13 +89,24 @@ module.exports = {
         const channel = await client.channels.fetch(giveaway.channelId).catch(() => null);
         if (channel) {
           await channel.send({
-            content: `${Emojis.resolve(client, "error", interaction.guildId)} **Giveaway Concluded!**\nReward: **${giveaway.prize}**\nResult: No winners could be determined as no users entered the giveaway matrix.\nGiveaway ID: \`${messageId}\``
+            flags: 1 << 15,
+            components: [{
+              type: 17,
+              accent_color: 0xef4444,
+              components: [
+                { type: 10, content: `# ${Emojis.resolve(client, "error", guildId)} Giveaway Concluded!` },
+                { type: 14 },
+                { type: 10, content: `**Reward:** ${giveaway.prize}\n**Result:** No winners could be determined as no users entered the giveaway matrix.\n**Giveaway ID:** \`${messageId}\`` }
+              ]
+            }]
           });
         }
 
+        await logGiveaway("end", messageId, giveaway.prize, { "Result": "No participants" });
+
         return interaction.reply({
           content: `${Emojis.resolve(client, "success", interaction.guildId)} **Giveaway Terminated:** No participants synchronized with matrix \`${messageId}\`.`,
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         });
       }
 
@@ -89,8 +127,20 @@ module.exports = {
         }
       }
 
+      await logGiveaway("end", messageId, giveaway.prize, { "Winners": winners.length });
+
+      const botConfig = storage.get("bot_identity", guildId) || {};
       return interaction.reply({
-        content: `${Emojis.resolve(client, "success", interaction.guildId)} **Giveaway Concluded!**\nReward: **${giveaway.prize}**\nWinner(s): ${winners.map(id => `<@${id}>`).join(", ")}\nGiveaway ID: \`${messageId}\``
+        flags: 1 << 15,
+        components: [{
+          type: 17,
+          accent_color: botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x10b981,
+          components: [
+            { type: 10, content: `# ${Emojis.resolve(client, "success", guildId)} Giveaway Concluded!` },
+            { type: 14 },
+            { type: 10, content: `**Reward:** ${giveaway.prize}\n**Winner(s):** ${winners.map(id => `<@${id}>`).join(", ")}\n**Giveaway ID:** \`${messageId}\`` }
+          ]
+        }]
       });
     }
 
@@ -101,7 +151,7 @@ module.exports = {
       if (!giveaway) {
         return interaction.reply({
           content: `${Emojis.resolve(client, "error", interaction.guildId)} **System Error:** No giveaway data found for ID \`${messageId}\`.`,
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         });
       }
 
@@ -109,7 +159,7 @@ module.exports = {
       if (participants.length === 0) {
         return interaction.reply({
           content: `${Emojis.resolve(client, "error", interaction.guildId)} **Reroll Failed:** No participants found for matrix \`${messageId}\`.`,
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         });
       }
 
@@ -121,8 +171,20 @@ module.exports = {
         }).catch(() => null);
       }
 
+      await logGiveaway("reroll", messageId, giveaway.prize, { "New Winner": winnerId });
+
+      const botConfig = storage.get("bot_identity", guildId) || {};
       return interaction.reply({
-        content: `${Emojis.resolve(client, "refresh", interaction.guildId)} **Giveaway Rerolled!**\nNew Winner: <@${winnerId}>\nGiveaway ID: \`${messageId}\``
+        flags: 1 << 15,
+        components: [{
+          type: 17,
+          accent_color: botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x3b82f6,
+          components: [
+            { type: 10, content: `# ${Emojis.resolve(client, "refresh", guildId)} Giveaway Rerolled!` },
+            { type: 14 },
+            { type: 10, content: `**New Winner:** <@${winnerId}>\n**Giveaway ID:** \`${messageId}\`` }
+          ]
+        }]
       });
     }
 
@@ -140,7 +202,7 @@ module.exports = {
     if (!match) {
       return interaction.reply({
         content: `${Emojis.resolve(client, "error", interaction.guildId)} **Invalid Duration:** Please use a valid format (e.g., \`10m\`, \`1h\`, \`2d\`).`,
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
 
@@ -158,7 +220,7 @@ module.exports = {
           components: [
             {
               type: 10, // TextDisplay
-              content: `# ${Emojis.resolve(client, "support", interaction.guildId)} New Giveaway Initialized!\nParticipate in the active matrix below for a chance to win.`
+              content: `${pingRole ? `${pingRole.toString()}\n` : ""}# ${Emojis.resolve(client, "support", interaction.guildId)} New Giveaway Initialized!\nParticipate in the active matrix below for a chance to win.`
             },
             {
               type: 14 // Separator
@@ -194,11 +256,7 @@ module.exports = {
     });
 
     // Send broadcast
-    const broadcastContent = pingRole ? `${pingRole.toString()}` : "";
-    const response = await interaction.channel.send({
-      content: broadcastContent,
-      ...payload
-    });
+    const response = await interaction.channel.send(payload);
 
     const giveawayData = {
       id: response.id,
@@ -221,7 +279,7 @@ module.exports = {
     // Persistent log
     storage.set("giveaways", response.id, giveawayData);
 
-    client.logger.info(`Giveaway started by ${interaction.user.tag} with ID ${response.id} for: ${prize}`);
+    await logGiveaway("start", response.id, prize, { "Winners": winnersCount, "Duration": durationInput });
 
     // Schedule end
     setTimeout(async () => {
@@ -244,8 +302,18 @@ module.exports = {
         if (channel) {
           if (winners.length === 0) {
             await channel.send({
-              content: `${Emojis.resolve(client, "error", interaction.guildId)} **Giveaway Concluded!**\nReward: **${prize}**\nResult: No winners could be determined as no users entered the giveaway matrix.\nGiveaway ID: \`${response.id}\``
+              flags: 1 << 15,
+              components: [{
+                type: 17,
+                accent_color: 0xef4444,
+                components: [
+                  { type: 10, content: `# ${Emojis.resolve(client, "error", interaction.guildId)} Giveaway Concluded!` },
+                  { type: 14 },
+                  { type: 10, content: `**Reward:** ${prize}\n**Result:** No winners could be determined as no users entered the giveaway matrix.\n**Giveaway ID:** \`${response.id}\`` }
+                ]
+              }]
             });
+            await logGiveaway("end", response.id, prize, { "Result": "No participants (scheduled)" });
           } else {
             // DM Winners
             for (const winnerId of winners) {
@@ -259,8 +327,18 @@ module.exports = {
             }
 
             await channel.send({
-              content: `${Emojis.resolve(client, "success", interaction.guildId)} **Giveaway Concluded!**\nReward: **${prize}**\nWinner(s): ${winners.map(id => `<@${id}>`).join(", ")}\nGiveaway ID: \`${response.id}\``
+              flags: 1 << 15,
+              components: [{
+                type: 17,
+                accent_color: botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x10b981,
+                components: [
+                  { type: 10, content: `# ${Emojis.resolve(client, "success", interaction.guildId)} Giveaway Concluded!` },
+                  { type: 14 },
+                  { type: 10, content: `**Reward:** ${prize}\n**Winner(s):** ${winners.map(id => `<@${id}>`).join(", ")}\n**Giveaway ID:** \`${response.id}\`` }
+                ]
+              }]
             });
+            await logGiveaway("end", response.id, prize, { "Winners": winners.length, "Source": "Scheduled" });
           }
         }
       }
