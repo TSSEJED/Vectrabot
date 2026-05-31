@@ -8,6 +8,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, EmbedBuilder } = require("discord.js");
 const Emojis = require("../config/emojis");
 const storage = require("../utils/storage");
+const serverStats = require("../addons/utility/server-stats");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -74,6 +75,10 @@ module.exports = {
     if (subcommand === "toggle") {
       config.enabled = interaction.options.getBoolean("enabled");
       storage.set("server_stats", guildId, config);
+
+      if (config.enabled) {
+        serverStats.updateStats(client, guildId).catch(() => null);
+      }
 
       return interaction.reply({
         content: `${Emojis.resolve(client, "success", guildId)} **Server Stats System** is now **${config.enabled ? "Enabled" : "Disabled"}**.`,

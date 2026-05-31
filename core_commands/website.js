@@ -18,7 +18,7 @@ module.exports = {
         .setDescription("Directly link to a specific page.")
         .setRequired(false)
         .addChoices(
-          { name: "🏠 Home", value: "" },
+          { name: "🏠 Home", value: "home" },
           { name: "🚀 Features", value: "features" },
           { name: "📜 Commands", value: "commands" },
           { name: "📚 Documentation", value: "docs" },
@@ -36,11 +36,12 @@ module.exports = {
     const guildId = interaction.guildId;
     const botConfig = storage.get("bot_identity", guildId) || {};
     const botName = botConfig.displayName || process.env.BOT_NAME || "Vectrabot";
-    const page = interaction.options.getString("page") || "";
+    const pageInput = interaction.options.getString("page") || "home";
+    const page = pageInput === "home" ? "" : pageInput;
 
     // Website URL (can be customized via env in the future, placeholder for now)
     const baseUrl = process.env.WEBSITE_URL || "https://vectrabot-core.bot-hosting.net";
-    const targetUrl = `${baseUrl}/${page}`;
+    const targetUrl = page ? `${baseUrl}/${page}` : baseUrl;
 
     const payload = {
       flags: 1 << 15, // IS_COMPONENTS_V2 bitwise flag
