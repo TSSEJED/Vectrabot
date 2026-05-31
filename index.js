@@ -119,6 +119,38 @@ if (serverStats && typeof serverStats.init === "function") {
 client.once("clientReady", async () => {
   client.logger.info(`Successfully logged in as ${client.user.tag}! Synchronizing application command registries...`);
 
+  // Recover timed bans from storage
+  const timedBans = storage.get("timed_actions", "bans") || [];
+  const activeBans = [];
+
+  for (const ban of timedBans) {
+    const remainingMs = ban.unbanTime - Date.now();
+    if (remainingMs <= 0) {
+      try {
+        const guild = await client.guilds.fetch(ban.guildId).catch(() => null);
+        if (guild) {
+          await guild.members.unban(ban.userId, "Temporary ban expired while bot was offline.");
+          client.logger.info(`Unbanned user ${ban.userId} in ${ban.guildId} (expired offline)`);
+        }
+      } catch (e) {}
+    } else {
+      activeBans.push(ban);
+      setTimeout(async () => {
+        try {
+          const guild = await client.guilds.fetch(ban.guildId).catch(() => null);
+          if (guild) {
+            await guild.members.unban(ban.userId, "Temporary ban expired.");
+            let currentActions = storage.get("timed_actions", "bans") || [];
+            currentActions = currentActions.filter(a => !(a.guildId === ban.guildId && a.userId === ban.userId));
+            storage.set("timed_actions", "bans", currentActions);
+            client.logger.info(`Unbanned user ${ban.userId} in ${ban.guildId} (scheduled)`);
+          }
+        } catch (e) {}
+      }, remainingMs);
+    }
+  }
+  storage.set("timed_actions", "bans", activeBans);
+
   // Recover giveaways from storage
   const giveaways = storage.getAll("giveaways");
   for (const [id, data] of Object.entries(giveaways)) {
@@ -149,9 +181,26 @@ client.once("clientReady", async () => {
 
             const channel = await client.channels.fetch(data.channelId).catch(() => null);
             if (channel) {
-              await channel.send({
-                content: `${Emojis.resolve(client, "success", data.guildId)} **Giveaway Concluded!**\nReward: **${data.prize}**\nWinner(s): ${winners.map(uid => `<@${uid}>`).join(", ")}\nMatrix ID: \`${id}\``
-              });
+              if (winners.length === 0) {
+                await channel.send({
+                  content: `${Emojis.resolve(client, "error", data.guildId)} **Giveaway Concluded!**\nReward: **${data.prize}**\nResult: No winners could be determined as no users entered the giveaway matrix.\nGiveaway ID: \`${id}\``
+                });
+              } else {
+                // DM Winners
+                for (const winnerId of winners) {
+                  const user = await client.users.fetch(winnerId).catch(() => null);
+                  if (user) {
+                    const guildName = (await client.guilds.fetch(data.guildId).catch(() => null))?.name || "a server";
+                    await user.send({
+                      content: `${Emojis.resolve(client, "success", data.guildId)} Congratulations! You won the giveaway for **${data.prize}** in **${guildName}**!`
+                    }).catch(() => null);
+                  }
+                }
+
+                await channel.send({
+                  content: `${Emojis.resolve(client, "success", data.guildId)} **Giveaway Concluded!**\nReward: **${data.prize}**\nWinner(s): ${winners.map(uid => `<@${uid}>`).join(", ")}\nGiveaway ID: \`${id}\``
+                });
+              }
             }
           }
         }, remainingMs);

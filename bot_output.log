@@ -1,0 +1,33 @@
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.912Z] Loaded Core Command: /bot-config (from bot-config.js)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.916Z] Loaded Core Command: /emoji (from emoji-config.js)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.917Z] Loaded Core Command: /help (from help.js)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.918Z] Loaded Core Command: /jtc (from jtc-config.js)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.919Z] Loaded Core Command: /logging (from logging.js)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.920Z] Loaded Core Command: /ping (from ping.js)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.921Z] Loaded Core Command: /server-stats (from stats-setup.js)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.922Z] Loaded Core Command: /stats (from stats.js)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.922Z] Loaded Core Command: /support (from support.js)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.924Z] Loaded Core Command: /ticket (from ticket-config.js)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.924Z] Loaded Core Command: /uptime (from uptime.js)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.925Z] Loaded Core Command: /website (from website.js)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.926Z] Loaded Core Command: /welcome (from welcome-config.js)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.928Z] Loaded Addon Command: /fun (from fun.js)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.929Z] Loaded Addon Command: /giveaway (from giveaway.js)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.931Z] Loaded Addon Command: /mod (from moderation.js)
+[33m[Vectrabot][0m [WARN] [2026-05-31T17:01:11.932Z] Skipped invalid command structure at: audit-logs.js (Missing 'data' or 'execute' function)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.933Z] Loaded Addon Command: /avatar (from avatar.js)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.934Z] Loaded Addon Command: /banner (from banner.js)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.935Z] Loaded Addon Command: /channelinfo (from channelinfo.js)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.936Z] Loaded Addon Command: /inviteinfo (from inviteinfo.js)
+[33m[Vectrabot][0m [WARN] [2026-05-31T17:01:11.936Z] Skipped invalid command structure at: join-to-create.js (Missing 'data' or 'execute' function)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.937Z] Loaded Addon Command: /roleinfo (from roleinfo.js)
+[33m[Vectrabot][0m [WARN] [2026-05-31T17:01:11.937Z] Skipped invalid command structure at: server-stats.js (Missing 'data' or 'execute' function)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.938Z] Loaded Addon Command: /serverinfo (from serverinfo.js)
+[33m[Vectrabot][0m [WARN] [2026-05-31T17:01:11.941Z] Skipped invalid command structure at: tickets.js (Missing 'data' or 'execute' function)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.941Z] Loaded Addon Command: /userinfo (from userinfo.js)
+[33m[Vectrabot][0m [WARN] [2026-05-31T17:01:11.942Z] Skipped invalid command structure at: welcome-system.js (Missing 'data' or 'execute' function)
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.942Z] Initialized specialized addon logic: AuditLogs
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.942Z] Initialized specialized addon logic: WelcomeSystem
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.942Z] Initialized specialized addon logic: JoinToCreate
+[32m[Vectrabot][0m [INFO] [2026-05-31T17:01:11.943Z] Initialized specialized addon logic: ServerStats
+[Cortex HQ Partnership] Warning: DISCORD_TOKEN is missing from environment. Bot cannot log in.
