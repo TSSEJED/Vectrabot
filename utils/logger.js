@@ -139,6 +139,13 @@ class Logger {
   }
 
   /**
+   * Broadcasts a custom log embed to the configured Discord channel.
+   */
+  async broadcastEmbed(guildId, level, embed) {
+    await this._broadcastToDiscord(level, "", 0, "", guildId, embed);
+  }
+
+  /**
    * Log info events specifically for a guild.
    */
   async guildInfo(guildId, message, metadata = {}) {

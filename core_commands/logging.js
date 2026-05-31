@@ -32,7 +32,10 @@ module.exports = {
               { name: "Warnings", value: "warn" },
               { name: "Errors", value: "error" },
               { name: "Commands", value: "command" },
-              { name: "Audit / Server Events", value: "audit" }
+              { name: "Audit / Server Events", value: "audit" },
+              { name: "Moderation Logs", value: "moderation" },
+              { name: "Ticket Logs", value: "tickets" },
+              { name: "Giveaway Logs", value: "giveaways" }
             )
         )
         .addChannelOption(opt =>
@@ -55,22 +58,28 @@ module.exports = {
               { name: "Warnings", value: "warn" },
               { name: "Errors", value: "error" },
               { name: "Commands", value: "command" },
-              { name: "Audit / Server Events", value: "audit" }
+              { name: "Audit / Server Events", value: "audit" },
+              { name: "Moderation Logs", value: "moderation" },
+              { name: "Ticket Logs", value: "tickets" },
+              { name: "Giveaway Logs", value: "giveaways" }
             )
         )
     )
     .addSubcommand(sub =>
-      sub.setName("audit-toggle")
-        .setDescription("Enable or disable specific audit log categories.")
+      sub.setName("toggle")
+        .setDescription("Enable or disable specific log categories.")
         .addStringOption(opt =>
           opt.setName("category")
-            .setDescription("The audit category to toggle.")
+            .setDescription("The category to toggle.")
             .setRequired(true)
             .addChoices(
-              { name: "All Audit Events", value: "all" },
-              { name: "Messages (Edit/Delete)", value: "messages" },
-              { name: "Members (Join/Leave)", value: "members" },
-              { name: "Server (Channels/Roles)", value: "server" }
+              { name: "All Logging", value: "all" },
+              { name: "Moderation", value: "moderation" },
+              { name: "Tickets", value: "tickets" },
+              { name: "Giveaways", value: "giveaways" },
+              { name: "Audit Messages", value: "messages" },
+              { name: "Audit Members", value: "members" },
+              { name: "Audit Server", value: "server" }
             )
         )
         .addBooleanOption(opt => opt.setName("enabled").setDescription("Status").setRequired(true))
@@ -87,6 +96,7 @@ module.exports = {
 
     const botConfig = storage.get("bot_identity", guildId) || {};
     const botName = botConfig.displayName || process.env.BOT_NAME || "Bot";
+    const accentColor = botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x10b981;
 
     if (subcommand === "set") {
       const level = interaction.options.getString("level");
@@ -104,8 +114,16 @@ module.exports = {
       storage.set("logs", guildId, guildLogs);
 
       return interaction.reply({
-        content: `${Emojis.resolve(client, "success", guildId)} **Configuration Updated:** \`${level.toUpperCase()}\` logs will now be sent to <#${channel.id}>.`,
-        flags: MessageFlags.Ephemeral
+        flags: (1 << 15) | MessageFlags.Ephemeral,
+        components: [{
+          type: 17,
+          accent_color: accentColor,
+          components: [
+            { type: 10, content: `# ${Emojis.resolve(client, "success", guildId)} Configuration Updated` },
+            { type: 14 },
+            { type: 10, content: `\`${level.toUpperCase()}\` logs will now be sent to <#${channel.id}>.` }
+          ]
+        }]
       });
     }
 
@@ -121,111 +139,93 @@ module.exports = {
       }
 
       return interaction.reply({
-        content: `${Emojis.resolve(client, "success", guildId)} **Configuration Reset:** \`${level.toUpperCase()}\` logging has been reset to defaults.`,
-        flags: MessageFlags.Ephemeral
+        flags: (1 << 15) | MessageFlags.Ephemeral,
+        components: [{
+          type: 17,
+          accent_color: accentColor,
+          components: [
+            { type: 10, content: `# ${Emojis.resolve(client, "success", guildId)} Configuration Reset` },
+            { type: 14 },
+            { type: 10, content: `\`${level.toUpperCase()}\` logging has been reset to defaults.` }
+          ]
+        }]
       });
     }
 
-    if (subcommand === "audit-toggle") {
+    if (subcommand === "toggle") {
       const category = interaction.options.getString("category");
       const enabled = interaction.options.getBoolean("enabled");
       const guildLogs = storage.get("logs", guildId) || {};
 
       if (category === "all") {
-        guildLogs.audit_disabled = !enabled;
-      } else {
+        botConfig.loggingEnabled = enabled;
+        storage.set("bot_identity", guildId, botConfig);
+      } else if (category === "messages" || category === "members" || category === "server") {
         guildLogs[`audit_${category}_enabled`] = enabled;
+        storage.set("logs", guildId, guildLogs);
+      } else {
+        guildLogs[`${category}_enabled`] = enabled;
+        storage.set("logs", guildId, guildLogs);
       }
 
-      storage.set("logs", guildId, guildLogs);
-
       return interaction.reply({
-        content: `${Emojis.resolve(client, "success", guildId)} **Audit Category Updated:** \`${category.toUpperCase()}\` is now **${enabled ? "Enabled" : "Disabled"}**.`,
-        flags: MessageFlags.Ephemeral
+        flags: (1 << 15) | MessageFlags.Ephemeral,
+        components: [{
+          type: 17,
+          accent_color: accentColor,
+          components: [
+            { type: 10, content: `# ${Emojis.resolve(client, "success", guildId)} Category Updated` },
+            { type: 14 },
+            { type: 10, content: `\`${category.toUpperCase()}\` is now **${enabled ? "Enabled" : "Disabled"}**.` }
+          ]
+        }]
       });
     }
 
     // Default: status subcommand
-    // Check persistent config first
     const guildLogs = storage.get("logs", guildId) || {};
-
-    // Fallback to environment variables
     const auditLogId = process.env.AUDIT_LOG_CHANNEL_ID;
-
-    // Fallback to environment variables
     const generalId = guildLogs.general || process.env.LOG_CHANNEL_ID;
-    const infoId = guildLogs.info || process.env.INFO_LOG_CHANNEL_ID;
-    const warnId = guildLogs.warn || process.env.WARN_LOG_CHANNEL_ID;
-    const errorId = guildLogs.error || process.env.ERROR_LOG_CHANNEL_ID;
-    const commandId = guildLogs.command || process.env.COMMAND_LOG_CHANNEL_ID;
-    const auditId = guildLogs.audit || auditLogId;
 
-    // Helper to format channel status text cleanly
-    const formatStatus = (channelId, label) => {
-      if (!channelId) {
-        return `${Emojis.resolve(client, "error", guildId)} **${label} Log Channel:** \`Disabled\` (Console Only)`;
-      }
-      return `${Emojis.resolve(client, "satellite", guildId)} **${label} Log Channel:** <#${channelId}> (\`${channelId}\`)`;
+    const formatStatus = (key, label) => {
+      const channelId = guildLogs[key] || (key === "audit" ? auditLogId : generalId);
+      const enabled = guildLogs[`${key}_enabled`] !== false;
+      if (!channelId) return `• **${label}:** \`Disabled\``;
+      return `• **${label}:** <#${channelId}> ${enabled ? "✅" : "❌"}`;
     };
-
-    const generalStatus = generalId 
-      ? `${Emojis.resolve(client, "web", guildId)} **Fallback Log Channel:** <#${generalId}> (\`${generalId}\`)`
-      : `${Emojis.resolve(client, "error", guildId)} **Fallback Log Channel:** \`Disabled\``;
 
     const auditStatus = (cat) => {
       const enabled = guildLogs[`audit_${cat}_enabled`] !== false;
       return enabled ? "✅" : "❌";
     };
 
-    const overallAudit = guildLogs.audit_disabled ? "❌ Disabled" : "✅ Enabled";
+    const overallLogging = botConfig.loggingEnabled !== false ? "✅ Enabled" : "❌ Disabled";
 
     const payload = {
       flags: 1 << 15,
       components: [
         {
-          type: 17, // Container
-          accent_color: botConfig.embedColor ? parseInt(botConfig.embedColor, 16) : 0x10b981, // Premium Emerald Accent line
+          type: 17,
+          accent_color: accentColor,
           components: [
             {
-              type: 10, // TextDisplay
-              content: `# ${Emojis.resolve(client, "satellite", guildId)} ${botName} Logging Configuration Matrix\nConfigure level-specific log channels and audit categories persistently.`
+              type: 10,
+              content: `# ${Emojis.resolve(client, "satellite", guildId)} ${botName} Logging Configuration Matrix`
             },
+            { type: 14 },
             {
-              type: 14 // Separator
+              type: 10,
+              content: `**Global Status:** ${overallLogging}\n\n**Specialized Modules:**\n${formatStatus("moderation", "Moderation")}\n${formatStatus("tickets", "Tickets")}\n${formatStatus("giveaways", "Giveaways")}`
             },
+            { type: 14 },
             {
-              type: 10, // TextDisplay
-              content: `**Audit Categories:**\n• Overall: ${overallAudit}\n• Messages: ${auditStatus("messages")}\n• Members: ${auditStatus("members")}\n• Server: ${auditStatus("server")}`
+              type: 10,
+              content: `**Audit Categories:**\n• Messages: ${auditStatus("messages")}\n• Members: ${auditStatus("members")}\n• Server: ${auditStatus("server")}`
             },
+            { type: 14 },
             {
-              type: 14 // Separator
-            },
-            {
-              type: 10, // TextDisplay - general fallback status
-              content: generalStatus
-            },
-            {
-              type: 14 // Separator
-            },
-            {
-              type: 10, // TextDisplay - Info
-              content: formatStatus(infoId || generalId, "INFO")
-            },
-            {
-              type: 10, // TextDisplay - Warn
-              content: formatStatus(warnId || generalId, "WARN")
-            },
-            {
-              type: 10, // TextDisplay - Error
-              content: formatStatus(errorId || generalId, "ERROR")
-            },
-            {
-              type: 10, // TextDisplay - Command
-              content: formatStatus(commandId || generalId, "COMMAND")
-            },
-            {
-              type: 10, // TextDisplay - Audit
-              content: formatStatus(auditId || generalId, "AUDIT")
+              type: 10,
+              content: `**Log Channels:**\n${formatStatus("info", "Information")}\n${formatStatus("warn", "Warnings")}\n${formatStatus("error", "Errors")}\n${formatStatus("command", "Commands")}\n${formatStatus("audit", "Audit")}`
             }
           ]
         }
