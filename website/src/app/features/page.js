@@ -23,6 +23,10 @@ export default function Features() {
     {
       title: '⚙️ Universal Configuration',
       desc: 'True no-code setup. Manage your bot name, accent colors, emojis, and module settings entirely through slash commands.'
+    },
+    {
+      title: '🎫 Advanced Tickets',
+      desc: 'Professional support system with claiming, logging, and high-fidelity HTML transcripts generated via Nexus Transcripts.'
     }
   ];
 

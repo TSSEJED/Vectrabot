@@ -4,7 +4,7 @@
   "description": "Production-ready enterprise Discord bot core template for bot-hosting.net",
   "main": "index.js",
   "scripts": {
-    "start": "concurrently \"node index.js\" \"cd website && npm start\"",
+    "start": "concurrently \"node index.js\" \"cd website && npm run build && npm start\"",
     "dev": "concurrently \"node index.js\" \"cd website && npm run dev\"",
     "bot": "node index.js",
     "web": "cd website && npm run dev"
@@ -20,6 +20,7 @@
   "dependencies": {
     "discord.js": "^14.15.3",
     "dotenv": "^16.4.5",
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "nexus-transcripts": "^1.0.0"
   }
 }
